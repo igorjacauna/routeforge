@@ -4,6 +4,15 @@ import * as monaco from 'monaco-editor';
 import { language as tsMonarch } from 'monaco-editor/esm/vs/basic-languages/typescript/typescript';
 import { onMounted, ref } from 'vue';
 
+// Configure Monaco Editor workers for Vite
+self.MonacoEnvironment = {
+  getWorkerUrl: () => {
+    return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(`
+      self.postMessage({});
+    `);
+  },
+};
+
 const editorContainer = ref<HTMLDivElement | null>(null);
 
 // Função para encontrar as dobras padrão (blocos de código)
@@ -41,6 +50,24 @@ function findStandardFoldingRanges(model: monaco.editor.ITextModel): monaco.lang
 }
 
 onMounted(() => {
+  // Configure TypeScript compiler options
+  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+    target: monaco.languages.typescript.ScriptTarget.ES2020,
+    allowNonTsExtensions: true,
+    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+    module: monaco.languages.typescript.ModuleKind.CommonJS,
+    noEmit: true,
+    esModuleInterop: true,
+    allowJs: true,
+  });
+
+  // Disable TypeScript diagnostics to avoid worker issues
+  monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: true,
+    noSyntaxValidation: true,
+    noSuggestionDiagnostics: true,
+  });
+
   // Configuração básica do TypeScript
   monaco.languages.setMonarchTokensProvider('typescript', {
     ...tsMonarch,
@@ -126,6 +153,10 @@ Response {
     language: 'typescript',
     contextmenu: false,
     theme: 'typescript',
+  });
+
+  editor.onDidChangeModelContent(() => {
+    // Content changed
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
