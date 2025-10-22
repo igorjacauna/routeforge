@@ -18,7 +18,7 @@ export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-vuefire'],
   css: ['~/assets/css/main.css'],
   vuefire: {
-    config: JSON.parse(process.env.FIREBASE_CONFIG || '{}'),
+    config: JSON.parse(process.env.FIREBASE_WEBAPP_CONFIG || '{}'),
     auth: {
       enabled: true,
     },
