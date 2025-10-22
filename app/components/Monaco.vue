@@ -13,6 +13,8 @@ self.MonacoEnvironment = {
   },
 };
 
+const model = defineModel<string>();
+
 const editorContainer = ref<HTMLDivElement | null>(null);
 
 // Função para encontrar as dobras padrão (blocos de código)
@@ -120,43 +122,14 @@ onMounted(() => {
 
   // Cria o editor com TypeScript estendido
   const editor = monaco.editor.create(editorContainer.value!, {
-    value: `# A route example
-/**
- * @title Example API Contract
- * @description This is a sample API contract for demonstration purposes.
- * @version 1.0.0
- * @author Igor Jacauna
- * @license MIT
- */
-GET /api/test
-
-Response {
-  message: string;
-  items: Array<{
-    id: number;
-    name: string;
-  }>;
-  active: boolean; // A comment
-  options: ['option1', 'option2', 'option3'];
-  values: enum('value1', 'value2', 'value3');
-  nested: {
-    key: string;
-    details: {
-      description: string;
-      count: number;
-    };
-  };
-  date: Date;
-  timestamp: DateTime;
-  custom: CustomType;
-}`,
+    value: model.value,
     language: 'typescript',
     contextmenu: false,
     theme: 'typescript',
   });
 
   editor.onDidChangeModelContent(() => {
-    // Content changed
+    model.value = editor.getValue();
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
@@ -212,3 +185,10 @@ Response {
 <template>
   <div ref="editorContainer" class="editor-container"/>
 </template>
+
+<style scoped>
+.editor-container {
+  width: 100%;
+  height: 100%;
+}
+</style>

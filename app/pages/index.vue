@@ -1,44 +1,46 @@
 <script setup lang="ts">
-const data = ref([
-  {
-    id: '4600',
-    date: '2024-03-11T15:30:00',
-    status: 'paid',
-    email: 'james.anderson@example.com',
-    amount: 594,
-  },
-  {
-    id: '4599',
-    date: '2024-03-11T10:10:00',
-    status: 'failed',
-    email: 'mia.white@example.com',
-    amount: 276,
-  },
-  {
-    id: '4598',
-    date: '2024-03-11T08:50:00',
-    status: 'refunded',
-    email: 'william.brown@example.com',
-    amount: 315,
-  },
-  {
-    id: '4597',
-    date: '2024-03-10T19:45:00',
-    status: 'paid',
-    email: 'emma.davis@example.com',
-    amount: 529,
-  },
-  {
-    id: '4596',
-    date: '2024-03-10T15:55:00',
-    status: 'paid',
-    email: 'ethan.harris@example.com',
-    amount: 639,
-  },
-]);
+
+const toast = useToast();
+
+const { workspaces } = useWorkspacesList();
+const { addWorkspace } = useWorkspaces();
+function onSubmitWorkspaceCreate(event: { data: { name: string } }) {
+  addWorkspace(event.data)
+    .then(() => {
+      toast.add({
+        title: 'Workspace created',
+        description: 'Your workspace has been created successfully.',
+        color: 'success',
+      });
+    })
+    .catch((reason) => {
+      toast.add({
+        title: 'Error creating workspace',
+        description: reason.message,
+        color: 'error',
+      });
+    });
+}
 </script>
 <template>
-  <UPage>
-    <UTable :data="data" class="flex-1" />
-  </UPage>
+  <UDashboardPanel>
+    <template #header>
+      <UDashboardNavbar title="Routeforge">
+        <template #right>
+          <WorkspaceCreateModal @submit="onSubmitWorkspaceCreate" />
+        </template>
+      </UDashboardNavbar>
+    </template>
+    <template #body>
+      <UPageGrid class="lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-px">
+        <UPageCard
+          v-for="(item, index) in workspaces"
+          :key="index"
+          :title="item.name"
+          :to="`/workspace/${item.id}`"
+          variant="subtle"
+        />
+      </UPageGrid>
+    </template>
+  </UDashboardPanel>
 </template>
