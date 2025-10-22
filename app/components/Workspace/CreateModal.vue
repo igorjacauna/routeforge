@@ -10,7 +10,9 @@ const emit = defineEmits<{
   (e: 'submit', event: FormSubmitEvent<z.infer<typeof schema>>): void;
 }>();
 
-const open = ref(false);
+const open = defineModel<boolean>({
+  default: false,
+});
 
 type Schema = z.output<typeof schema>
 

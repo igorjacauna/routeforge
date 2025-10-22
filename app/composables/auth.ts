@@ -1,6 +1,7 @@
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signOut,
 } from 'firebase/auth';
 
 export default function useAuth() {
@@ -12,7 +13,13 @@ export default function useAuth() {
     return signInWithPopup(auth, googleAuthProvider);
   };
 
+  const logout = () => {
+    if (!auth) throw new Error('Auth is not initialized');
+    return signOut(auth);
+  };
+
   return {
     signInWithGoogle,
+    logout,
   };
 }

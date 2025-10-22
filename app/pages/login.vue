@@ -27,7 +27,7 @@ const providers = [{
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center gap-4 p-4">
+  <div class="flex flex-col items-center justify-center gap-4 p-4 w-full">
     <UPageCard class="w-full max-w-md">
       <UAuthForm
         :loading

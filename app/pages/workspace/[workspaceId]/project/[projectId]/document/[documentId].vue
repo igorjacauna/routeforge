@@ -33,29 +33,22 @@ watch(() => document.value?.content, (newValue) => {
 <template>
   <UDashboardPanel :ui="{ body: 'p-0 sm:p-0' }">
     <template #header>
-      <UDashboardNavbar title="Routeforge">
-        <template #leading>
-          <UButton icon="i-lucide-house" to="/" variant="ghost" />
-        </template>
-        <template #trailing>
-          <UBreadcrumb
-            :items="[
-              {
-                label: workspace?.name,
-                to: `/workspace/${workspace?.id}`
-              },
-              {
-                label: project?.name,
-                to: `/workspace/${workspace?.id}/project/${project?.id}`
-              },
-              {
-                label: document?.title,
-                to: `/workspace/${workspace?.id}/project/${project?.id}/document/${documentId}`
-              }
-            ]"
-          />
-        </template>
-      </UDashboardNavbar>
+      <AppHeader
+        :breadcrum-items="[
+          {
+            label: workspace?.name,
+            to: `/workspace/${workspace?.id}`
+          },
+          {
+            label: project?.name,
+            to: `/workspace/${workspace?.id}/project/${project?.id}`
+          },
+          {
+            label: document?.title,
+            to: `/workspace/${workspace?.id}/project/${project?.id}/document/${documentId}`
+          }
+        ]"
+      />
     </template>
     <template #body>
       <template v-if="!document">

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 
 const toast = useToast();
-
+const openCreate = ref(false);
 const { workspaces } = useWorkspacesList();
-const { addWorkspace } = useWorkspaces();
+const { addWorkspace, deleteWorkspace } = useWorkspaces();
+
 function onSubmitWorkspaceCreate(event: { data: { name: string } }) {
   addWorkspace(event.data)
     .then(() => {
@@ -12,6 +13,7 @@ function onSubmitWorkspaceCreate(event: { data: { name: string } }) {
         description: 'Your workspace has been created successfully.',
         color: 'success',
       });
+      openCreate.value = false;
     })
     .catch((reason) => {
       toast.add({
@@ -21,25 +23,63 @@ function onSubmitWorkspaceCreate(event: { data: { name: string } }) {
       });
     });
 }
+
+function onDeleteWorkspace(workspaceId?: string) {
+  if (!workspaceId) {
+    toast.add({
+      title: 'Error deleting workspace',
+      description: 'Workspace ID is required.',
+      color: 'error',
+    });
+    return;
+  }
+  deleteWorkspace(workspaceId)
+    .then(() => {
+      toast.add({
+        title: 'Workspace deleted',
+        description: 'Your workspace has been deleted successfully.',
+        color: 'success',
+      });
+    })
+    .catch((reason) => {
+      toast.add({
+        title: 'Error deleting workspace',
+        description: reason.message,
+        color: 'error',
+      });
+    });
+};
 </script>
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar title="Routeforge">
-        <template #right>
-          <WorkspaceCreateModal @submit="onSubmitWorkspaceCreate" />
+      <AppHeader>
+        <template #actions>
+          <WorkspaceCreateModal v-model="openCreate" @submit="onSubmitWorkspaceCreate" />
         </template>
-      </UDashboardNavbar>
+      </AppHeader>
     </template>
     <template #body>
-      <UPageGrid class="lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-px">
-        <UPageCard
-          v-for="(item, index) in workspaces"
-          :key="index"
-          :title="item.name"
-          :to="`/workspace/${item.id}`"
-          variant="subtle"
-        />
+      <UPageHeader title="Workspaces" />
+      <UPageGrid>
+        <template v-for="item in workspaces" :key="item.id">
+          <UContextMenu
+            :items="[
+              {
+                label: 'Delete',
+                icon: 'i-lucide-trash',
+                color: 'error',
+                onClick: () => onDeleteWorkspace(item.id),
+              }
+            ]"
+          >
+          <UPageCard
+            :title="item.name"
+            :to="`/workspace/${item.id}`"
+            variant="subtle"
+          />
+          </UContextMenu>
+        </template>
       </UPageGrid>
     </template>
   </UDashboardPanel>
