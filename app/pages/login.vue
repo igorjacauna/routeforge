@@ -4,16 +4,23 @@ import useAuth from '~/composables/auth';
 const toast = useToast();
 const { signInWithGoogle } = useAuth();
 const loading = ref(false);
+const router = useRouter();
 
 const providers = [{
   label: 'Google',
   icon: 'i-simple-icons-google',
   onClick: () => {
+    loading.value = true;
     signInWithGoogle().catch((reason) => {
       toast.add({
         title: 'Error on login',
         description: reason.message,
+        color: 'error',
       });
+    }).then(() => {
+      router.replace('/');
+    }).finally(() => {
+      loading.value = false;
     });
   },
 }];
