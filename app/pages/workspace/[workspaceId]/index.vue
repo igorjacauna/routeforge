@@ -66,8 +66,8 @@ function onDeleteProject(projectId?: string) {
       <AppHeader
         :breadcrum-items="[
           {
-            label: workspace?.name,
-            to: `/workspace/${workspace?.id}`
+            label: workspace?.name || workspaceId,
+            to: `/workspace/${workspaceId}`
           }
         ]"
       >
@@ -77,7 +77,7 @@ function onDeleteProject(projectId?: string) {
       </AppHeader>
     </template>
     <template #body>
-      <UPageHeader :title="`Projects from ${workspace?.name}`" />
+      <UPageHeader :title="`Projects from ${workspace?.name || workspaceId}`" />
       <UPageGrid>
         <template v-for="item in projects" :key="item.id">
           <UContextMenu

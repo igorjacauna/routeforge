@@ -1,16 +1,22 @@
+import type {
+  Query,
+} from 'firebase/firestore';
 import {
   addDoc,
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
+  query,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 export function useDocuments(workspaceId: Ref<string | null>, projectId: Ref<string | null>) {
   const db = useFirestore();
   const user = useCurrentUser();
 
-  const addDocument = async (data: Omit<DocumentFile, 'id' | 'createdAt' | 'projectId' | 'ownerId' | 'content'>) => {
+  const addDocument = async (data: Omit<DocumentFile, 'id' | 'createdAt' | 'projectId' | 'ownerId' | 'content' | 'workspaceId'>) => {
     if (!workspaceId.value || !projectId.value) throw new Error('Missing IDs');
     if (!user.value) throw new Error('Not authenticated');
     await addDoc(collection(db, `workspaces/${workspaceId.value}/projects/${projectId.value}/documents`), {
@@ -52,7 +58,52 @@ export function useDocuments(workspaceId: Ref<string | null>, projectId: Ref<str
 }
 
 export function useDocumentsList(workspaceId: Ref<string | null>, projectId: Ref<string | null>) {
-  if (!workspaceId.value || !projectId.value) throw createError('Workspace ID and Project ID are required');
-  const documents = useSharedCollection<DocumentFile>(`workspaces/${workspaceId.value}/projects/${projectId.value}/documents`);
+  const db = useFirestore();
+
+  const documentsQuery = computed(() => {
+    if (!workspaceId.value || !projectId.value) return null;
+    return query(
+      collection(db, `workspaces/${workspaceId.value}/projects/${projectId.value}/documents`),
+    ) as Query<DocumentFile>;
+  });
+
+  const documents = useCollection<DocumentFile>(documentsQuery);
+
   return { documents };
+}
+
+export function useAllSharedDocuments() {
+  const db = useFirestore();
+  const user = useCurrentUser();
+
+  // Busca onde sou editor
+  const editorsQuery = computed(() => {
+    if (!user.value) return null;
+    return query(
+      collectionGroup(db, 'documents'),
+      where('editors', 'array-contains', user.value.uid),
+    ) as Query<DocumentFile>;
+  });
+
+  // Busca onde sou viewer
+  const viewersQuery = computed(() => {
+    if (!user.value) return null;
+    return query(
+      collectionGroup(db, 'documents'),
+      where('viewers', 'array-contains', user.value.uid),
+    ) as Query<DocumentFile>;
+  });
+
+  const editors = useCollection<DocumentFile>(editorsQuery);
+  const viewers = useCollection<DocumentFile>(viewersQuery);
+
+  // Combina ambos os resultados
+  const combined = computed(() => {
+    const map = new Map<string, DocumentFile>();
+    for (const d of editors.value) map.set(d.id!, d);
+    for (const d of viewers.value) map.set(d.id!, d);
+    return Array.from(map.values());
+  });
+
+  return combined;
 }

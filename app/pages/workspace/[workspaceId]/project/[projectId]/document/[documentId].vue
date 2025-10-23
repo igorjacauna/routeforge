@@ -36,16 +36,16 @@ watch(() => document.value?.content, (newValue) => {
       <AppHeader
         :breadcrum-items="[
           {
-            label: workspace?.name,
-            to: `/workspace/${workspace?.id}`
+            label: workspace?.name || workspaceId,
+            to: `/workspace/${workspaceId}`
           },
           {
-            label: project?.name,
-            to: `/workspace/${workspace?.id}/project/${project?.id}`
+            label: project?.name || projectId,
+            to: `/workspace/${workspaceId}/project/${projectId}`
           },
           {
-            label: document?.title,
-            to: `/workspace/${workspace?.id}/project/${project?.id}/document/${documentId}`
+            label: document?.title || documentId,
+            to: `/workspace/${workspaceId}/project/${projectId}/document/${documentId}`
           }
         ]"
       />

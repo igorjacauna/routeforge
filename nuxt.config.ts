@@ -21,6 +21,7 @@ export default defineNuxtConfig({
     config: JSON.parse(process.env.FIREBASE_WEBAPP_CONFIG || '{}'),
     auth: {
       enabled: true,
+      sessionCookie: true,
     },
     appCheck: {
       isTokenAutoRefreshEnabled: true,

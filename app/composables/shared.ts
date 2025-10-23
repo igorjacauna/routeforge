@@ -10,27 +10,40 @@ export function useSharedCollection<T>(collectionPath: string, extraWhere: Query
   const db = useFirestore();
   const user = useCurrentUser();
 
-  const ownedQuery = computed(() =>
+  const editorsQuery = computed(() => {
+    if (!user.value) return null;
+    return query(collection(db, collectionPath), where('editors', 'array-contains', user.value.uid), ...extraWhere);
+  });
+
+  const viewersQuery = computed(() => {
+    if (!user.value) return null;
+    return query(collection(db, collectionPath), where('viewers', 'array-contains', user.value.uid), ...extraWhere);
+  });
+
+  const editors = useCollection<T>(editorsQuery);
+  const viewers = useCollection<T>(viewersQuery);
+
+  const combined = computed(() => {
+    const map = new Map<string, T>();
+    for (const d of editors.value) map.set((d as { id: string }).id, d);
+    for (const d of viewers.value) map.set((d as { id: string }).id, d);
+    return Array.from(map.values());
+  });
+
+  return combined;
+}
+
+export function useOwnerCollection<T>(collectionPath: string, extraWhere: QueryFieldFilterConstraint[] = []) {
+  const db = useFirestore();
+  const user = useCurrentUser();
+
+  const ownerQuery = computed(() =>
     user.value
       ? query(collection(db, collectionPath), where('ownerId', '==', user.value.uid), ...extraWhere)
       : null,
   );
 
-  const sharedQuery = computed(() =>
-    user.value
-      ? query(collection(db, collectionPath), where(`sharedWith.${user.value.uid}`, 'in', ['viewer', 'editor']), ...extraWhere)
-      : null,
-  );
+  const ownerCollection = useCollection<T>(ownerQuery);
 
-  const owned = useCollection<T>(ownedQuery);
-  const shared = useCollection<T>(sharedQuery);
-
-  const combined = computed(() => {
-    const map = new Map<string, T>();
-    for (const d of owned.value) map.set((d as { id: string }).id, d);
-    for (const d of shared.value) map.set((d as { id: string }).id, d);
-    return Array.from(map.values());
-  });
-
-  return combined;
+  return ownerCollection;
 }

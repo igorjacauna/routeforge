@@ -70,12 +70,12 @@ function onDeleteDocument(documentId?: string) {
       <AppHeader
         :breadcrum-items="[
           {
-            label: workspace?.name,
+            label: workspace?.name || workspaceId,
             to: `/workspace/${workspace?.id}`
           },
           {
             label: project?.name,
-            to: `/workspace/${workspace?.id}/project/${project?.id}`
+            to: `/workspace/${workspaceId}/project/${project?.id}`
           }
         ]"
       >

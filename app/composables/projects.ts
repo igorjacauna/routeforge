@@ -1,8 +1,14 @@
+import type {
+  Query,
+} from 'firebase/firestore';
 import {
   addDoc,
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
+  query,
+  where,
 } from 'firebase/firestore';
 
 export function useProjects(workspaceId: Ref<string | null>) {
@@ -37,6 +43,49 @@ export function useProjects(workspaceId: Ref<string | null>) {
 
 export function useProjectsList(workspaceId: Ref<string | null>) {
   if (!workspaceId.value) throw createError('Workspace ID is required');
-  const projects = useSharedCollection<Project>(`workspaces/${workspaceId.value}/projects`);
+  const db = useFirestore();
+  const projectsQuery = computed(() => {
+    if (!workspaceId.value) return null;
+    return query(
+      collection(db, `workspaces/${workspaceId.value}/projects`),
+    ) as Query<Project>;
+  });
+  const projects = useCollection<Project>(projectsQuery);
   return { projects };
+}
+
+export function useAllSharedProjects() {
+  const db = useFirestore();
+  const user = useCurrentUser();
+
+  // Busca onde sou editor
+  const editorsQuery = computed(() => {
+    if (!user.value) return null;
+    return query(
+      collectionGroup(db, 'projects'),
+      where('editors', 'array-contains', user.value.uid),
+    ) as Query<Project>;
+  });
+
+  // Busca onde sou viewer
+  const viewersQuery = computed(() => {
+    if (!user.value) return null;
+    return query(
+      collectionGroup(db, 'projects'),
+      where('viewers', 'array-contains', user.value.uid),
+    ) as Query<Project>;
+  });
+
+  const editors = useCollection<Project>(editorsQuery);
+  const viewers = useCollection<Project>(viewersQuery);
+
+  // Combina ambos os resultados
+  const combined = computed(() => {
+    const map = new Map<string, Project>();
+    for (const d of editors.value) map.set(d.id!, d);
+    for (const d of viewers.value) map.set(d.id!, d);
+    return Array.from(map.values());
+  });
+
+  return combined;
 }

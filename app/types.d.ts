@@ -4,7 +4,8 @@ declare global {
     id?: string;
     name: string;
     ownerId: string;
-    sharedWith?: Record<string, 'viewer' | 'editor'>;
+    editors?: string[]; // Array de userIds que podem editar
+    viewers?: string[]; // Array de userIds que podem visualizar
     createdAt: Date;
   }
 
@@ -13,18 +14,33 @@ declare global {
     workspaceId: string;
     name: string;
     ownerId: string;
-    sharedWith?: Record<string, 'viewer' | 'editor'>;
+    editors?: string[]; // Array de userIds que podem editar
+    viewers?: string[]; // Array de userIds que podem visualizar
     createdAt: Date;
   }
 
   interface DocumentFile {
     id?: string;
     projectId: string;
+    workspaceId: string;
     title: string;
     content: string;
     ownerId: string;
-    sharedWith?: Record<string, 'viewer' | 'editor'>;
+    editors?: string[]; // Array de userIds que podem editar
+    viewers?: string[]; // Array de userIds que podem visualizar
     createdAt: Date;
+  }
+
+  interface ShareInvitation {
+    id: string;
+    resourceType: 'workspace' | 'project' | 'document';
+    resourceId: string;
+    invitedBy: string;
+    invitedEmail: string;
+    token: string;
+    expiresAt: number; // timestamp
+    status: 'pending' | 'accepted' | 'expired';
+    createdAt: number; // timestamp
   }
 }
 

@@ -3,6 +3,9 @@
 const toast = useToast();
 const openCreate = ref(false);
 const { workspaces } = useWorkspacesList();
+const sharedWorkspaces = useAllSharedWorkspaces();
+const sharedProjects = useAllSharedProjects();
+const sharedDocuments = useAllSharedDocuments();
 const { addWorkspace, deleteWorkspace } = useWorkspaces();
 
 function onSubmitWorkspaceCreate(event: { data: { name: string } }) {
@@ -79,6 +82,31 @@ function onDeleteWorkspace(workspaceId?: string) {
             variant="subtle"
           />
           </UContextMenu>
+        </template>
+      </UPageGrid>
+      <USeparator />
+      <UPageHeader description="Shared with you" />
+      <UPageGrid>
+        <template v-for="item in sharedWorkspaces" :key="item.id">
+          <UPageCard
+            :title="item.name"
+            :to="`/workspace/${item.id}`"
+            variant="subtle"
+          />
+        </template>
+        <template v-for="item in sharedProjects" :key="item.id">
+          <UPageCard
+            :title="item.name"
+            :to="`/workspace/${item.workspaceId}/project/${item.id}`"
+            variant="subtle"
+          />
+        </template>
+        <template v-for="item in sharedDocuments" :key="item.id">
+          <UPageCard
+            :title="item.title"
+            :to="`/workspace/${item.workspaceId}/project/${item.projectId}/document/${item.id}`"
+            variant="subtle"
+          />
         </template>
       </UPageGrid>
     </template>
