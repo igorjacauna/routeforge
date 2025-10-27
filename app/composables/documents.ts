@@ -15,15 +15,17 @@ import {
 export function useDocuments(workspaceId: Ref<string | null>, projectId: Ref<string | null>) {
   const db = useFirestore();
   const user = useCurrentUser();
+  const { getProject } = useProjects(workspaceId);
 
   const addDocument = async (data: Omit<DocumentFile, 'id' | 'createdAt' | 'projectId' | 'ownerId' | 'content' | 'workspaceId'>) => {
     if (!workspaceId.value || !projectId.value) throw new Error('Missing IDs');
     if (!user.value) throw new Error('Not authenticated');
+    const projectDoc = await getProject(projectId.value).value;
     await addDoc(collection(db, `workspaces/${workspaceId.value}/projects/${projectId.value}/documents`), {
       ...data,
       workspaceId: workspaceId.value,
       projectId: projectId.value,
-      ownerId: user.value.uid,
+      ownerId: projectDoc?.ownerId || user.value.uid,
       createdAt: new Date(),
     });
   };

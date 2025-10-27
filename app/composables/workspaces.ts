@@ -39,7 +39,7 @@ export function useWorkspaces() {
 }
 
 export function useWorkspacesList() {
-  const workspaces = useOwnerCollection<Workspace>('workspaces');
+  const workspaces = useSharedCollection<Workspace>('workspaces');
   return { workspaces };
 }
 

@@ -10,6 +10,11 @@ export function useSharedCollection<T>(collectionPath: string, extraWhere: Query
   const db = useFirestore();
   const user = useCurrentUser();
 
+  const ownerQuery = computed(() => {
+    if (!user.value) return null;
+    return query(collection(db, collectionPath), where('ownerId', '==', user.value.uid), ...extraWhere);
+  });
+
   const editorsQuery = computed(() => {
     if (!user.value) return null;
     return query(collection(db, collectionPath), where('editors', 'array-contains', user.value.uid), ...extraWhere);
@@ -22,11 +27,13 @@ export function useSharedCollection<T>(collectionPath: string, extraWhere: Query
 
   const editors = useCollection<T>(editorsQuery);
   const viewers = useCollection<T>(viewersQuery);
+  const owners = useCollection<T>(ownerQuery);
 
   const combined = computed(() => {
     const map = new Map<string, T>();
     for (const d of editors.value) map.set((d as { id: string }).id, d);
     for (const d of viewers.value) map.set((d as { id: string }).id, d);
+    for (const d of owners.value) map.set((d as { id: string }).id, d);
     return Array.from(map.values());
   });
 

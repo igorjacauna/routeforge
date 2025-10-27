@@ -126,6 +126,8 @@ onMounted(() => {
     language: 'typescript',
     contextmenu: false,
     theme: 'typescript',
+    tabSize: 2, // Tamanho do tab
+    insertSpaces: true, // Usa espaços ao invés de tabs
   });
 
   editor.onDidChangeModelContent(() => {

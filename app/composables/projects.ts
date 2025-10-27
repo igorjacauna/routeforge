@@ -14,14 +14,16 @@ import {
 export function useProjects(workspaceId: Ref<string | null>) {
   const db = useFirestore();
   const user = useCurrentUser();
+  const { getWorkspace } = useWorkspaces();
 
   const addProject = async (data: Omit<Project, 'id' | 'createdAt' | 'workspaceId' | 'ownerId'>) => {
     if (!workspaceId.value) throw new Error('workspaceId required');
     if (!user.value) throw new Error('Not authenticated');
+    const workspaceDoc = await getWorkspace(workspaceId.value).value;
     return addDoc(collection(db, `workspaces/${workspaceId.value}/projects`), {
       ...data,
       workspaceId: workspaceId.value,
-      ownerId: user.value.uid,
+      ownerId: workspaceDoc?.ownerId || user.value.uid,
       createdAt: new Date(),
     });
   };
