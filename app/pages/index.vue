@@ -56,7 +56,7 @@ function onDeleteWorkspace(workspaceId?: string) {
   <UDashboardPanel>
     <template #header>
       <AppHeader>
-        <template #actions>
+        <template #action>
           <WorkspaceCreateModal v-model="openCreate" @submit="onSubmitWorkspaceCreate" />
         </template>
       </AppHeader>

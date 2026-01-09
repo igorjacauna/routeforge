@@ -24,7 +24,7 @@ const { logout } = useAuth();
     </template>
     <template #right>
       <slot name="action" />
-      <ShareButton />
+      <!-- <ShareButton /> -->
       <UButton icon="i-lucide-door-open" variant="ghost" color="neutral" @click="logout">Logout</UButton>
     </template>
   </UDashboardNavbar>
