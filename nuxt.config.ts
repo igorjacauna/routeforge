@@ -1,32 +1,34 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2025-05-15',
-  ssr: false,
-  app: {
-    head: {
-      title: 'RouteForge',
-      meta: [
-        { name: 'description', content: 'RouteForge - Your API Contract Editor' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      ],
-    },
+  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxtjs/supabase'],
+
+  devtools: {
+    enabled: true
   },
-  nitro: {
-    preset: 'firebase-app-hosting',
-  },
-  devtools: { enabled: true },
-  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-vuefire'],
+
   css: ['~/assets/css/main.css'],
-  vuefire: {
-    config: JSON.parse(process.env.FIREBASE_WEBAPP_CONFIG || '{}'),
-    auth: {
-      enabled: true,
-      sessionCookie: true,
-    },
-    appCheck: {
-      isTokenAutoRefreshEnabled: true,
-      provider: 'ReCaptchaEnterprise',
-      key: process.env.RECAPTCHA_SITE_KEY || '',
-    },
+
+  supabase: {
+    redirect: false,
+    redirectOptions: {
+      login: '/',
+      callback: '/auth/callback',
+      exclude: []
+    }
   },
-});
+
+  routeRules: {
+    '/': { prerender: true }
+  },
+
+  compatibilityDate: '2025-01-15',
+
+  eslint: {
+    config: {
+      stylistic: {
+        commaDangle: 'never',
+        braceStyle: '1tbs'
+      }
+    }
+  }
+})

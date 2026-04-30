@@ -1,3 +1,0 @@
-env:
-  - variable: RECAPTCHA_SITE_KEY
-    secret: RECAPTCHA_SITE_KEY
