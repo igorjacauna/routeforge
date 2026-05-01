@@ -1,7 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'auth',
-  middleware: 'guest'
+  layout: 'auth'
 })
 
 useSeoMeta({
@@ -10,6 +9,7 @@ useSeoMeta({
 
 const { getFirstWorkspace, checkAuthStatus } = useAuth()
 const router = useRouter()
+const user = useSupabaseUser()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -17,6 +17,12 @@ const statusMessage = ref('Processando autenticação...')
 
 onMounted(async () => {
   try {
+    // Se usuário já está autenticado (acesso direto a /auth/callback), redireciona
+    if (user.value) {
+      await router.push('/workspace')
+      return
+    }
+
     // Aguarda alguns ms para Supabase processar o callback
     await new Promise(resolve => setTimeout(resolve, 500))
 
