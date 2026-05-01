@@ -1,8 +1,8 @@
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
-  const fileId = event.context.params?.id
+  const folderId = event.context.params?.id
 
-  if (!user || !fileId) {
+  if (!user || !folderId) {
     throw createError({
       statusCode: 401,
       statusMessage: 'Unauthorized'
@@ -10,10 +10,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { content, name, folderId } = body
+  const { name, parentFolderId } = body
 
-  // Validate at least one field is provided
-  if (!content && !name && folderId === undefined) {
+  if (!name && parentFolderId === undefined) {
     throw createError({
       statusCode: 400,
       statusMessage: 'No fields to update'
@@ -23,18 +22,18 @@ export default defineEventHandler(async (event) => {
   try {
     const client = await serverSupabaseClient(event)
 
-    // Get file and verify ownership
-    const { data: file, error: getError } = await client
-      .from('files')
-      .select('workspace_id, folder_id')
-      .eq('id', fileId)
+    // Get folder and verify ownership
+    const { data: folder, error: getError } = await client
+      .from('folders')
+      .select('workspace_id, parent_folder_id')
+      .eq('id', folderId)
       .single()
 
     if (getError) throw getError
-    if (!file) {
+    if (!folder) {
       throw createError({
         statusCode: 404,
-        statusMessage: 'File not found'
+        statusMessage: 'Folder not found'
       })
     }
 
@@ -42,7 +41,7 @@ export default defineEventHandler(async (event) => {
     const { data: workspace, error: workspaceError } = await client
       .from('workspaces')
       .select('id')
-      .eq('id', file.workspace_id)
+      .eq('id', folder.workspace_id)
       .eq('owner_id', user.id)
       .single()
 
@@ -55,41 +54,35 @@ export default defineEventHandler(async (event) => {
 
     // Build update object
     const updateData: any = {
-      updated_by_id: user.id,
       updated_at: new Date().toISOString()
     }
 
-    if (content) {
-      updateData.content = content
-      updateData.file_size_bytes = content.length
-    }
-
     if (name) {
-      updateData.name = name
+      updateData.name = name.trim()
     }
 
-    if (folderId !== undefined) {
-      updateData.folder_id = folderId || null
+    if (parentFolderId !== undefined) {
+      updateData.parent_folder_id = parentFolderId || null
     }
 
-    // Update file
+    // Update folder
     const { data: updated, error: updateError } = await client
-      .from('files')
+      .from('folders')
       .update(updateData)
-      .eq('id', fileId)
+      .eq('id', folderId)
       .select()
       .single()
 
     if (updateError || !updated) {
-      throw updateError || new Error('Failed to update file')
+      throw updateError || new Error('Failed to update folder')
     }
 
     return updated
   } catch (error) {
-    console.error('Update file error:', error)
+    console.error('Update folder error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to update file'
+      statusMessage: 'Failed to update folder'
     })
   }
 })

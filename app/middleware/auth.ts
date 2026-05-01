@@ -2,7 +2,7 @@
  * Client-side auth middleware
  * Handles authentication checks and redirects
  */
-export default defineRouteMiddleware((to, from) => {
+export default defineNuxtRouteMiddleware((to, from) => {
   const user = useSupabaseUser()
 
   // Redirect authenticated users away from auth pages
