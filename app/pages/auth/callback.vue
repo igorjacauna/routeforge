@@ -1,15 +1,15 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'auth'
+  layout: 'auth',
+  middleware: 'auth'
 })
 
 useSeoMeta({
   title: 'Autenticando...'
 })
 
-const { getFirstWorkspace, checkAuthStatus } = useAuth()
+const { getFirstWorkspace } = useAuth()
 const router = useRouter()
-const user = useSupabaseUser()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -17,36 +17,23 @@ const statusMessage = ref('Processando autenticação...')
 
 onMounted(async () => {
   try {
-    // Se usuário já está autenticado (acesso direto a /auth/callback), redireciona
-    if (user.value) {
-      await router.push('/workspace')
-      return
-    }
-
-    // Aguarda alguns ms para Supabase processar o callback
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // Verifica se usuário foi autenticado
-    const isAuthenticated = await checkAuthStatus()
-
-    if (!isAuthenticated) {
-      throw new Error('Autenticação falhou. Por favor, tente novamente.')
-    }
+    // Aguarda Supabase processar o callback do OAuth
+    await new Promise(resolve => setTimeout(resolve, 800))
 
     statusMessage.value = 'Carregando seu workspace...'
 
-    // Busca primeira workspace
+    // Busca primeira workspace do usuário
     const workspace = await getFirstWorkspace()
 
     if (!workspace) {
-      throw new Error('Nenhum workspace encontrado. Contate o suporte.')
+      throw new Error('Nenhum workspace encontrado. Por favor contate o suporte.')
     }
 
     // Redireciona para workspace
-    await router.push(`/workspace/${workspace.id}`)
+    await router.replace(`/workspace/${workspace.id}`)
 
   } catch (err: any) {
-    console.error('Auth callback error:', err)
+    console.error('Callback error:', err)
     loading.value = false
     error.value = err.message || 'Erro ao processar autenticação'
     statusMessage.value = 'Erro na autenticação'
