@@ -24,13 +24,11 @@
 
 **Localização:** `app/pages/auth/callback.vue`
 
-### 3. **Middleware Client-Side `guest.ts` (Novo)**
-- ✅ Protege rotas de autenticação
+### 3. **Proteção de Rotas** 🛡️
+- ✅ Verificação de autenticação na página de callback
 - ✅ Redireciona usuários autenticados para `/workspace`
-- ✅ Usa `defineRouteMiddleware()` do Nuxt 4
-- ✅ Compatível com `middleware: 'guest'` em `definePageMeta`
-
-**Localização:** `app/middleware/guest.ts`
+- ✅ Implementado diretamente no `onMounted` da página
+- ✅ Evita problemas de auto-import do Nuxt 4
 
 ### 4. **Endpoint de Profile `/api/auth/profile.get.ts` (Novo)**
 - ✅ Retorna user profile completo
