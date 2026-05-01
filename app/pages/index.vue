@@ -1,9 +1,16 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'auth'
+  layout: 'auth',
+  middleware: 'guest'
 })
 
-const { login, isLoading } = useAuth()
+const { login } = useAuth()
+const isLoading = ref(false)
+
+const handleLogin = async () => {
+  isLoading.value = true
+  await login()
+}
 
 useSeoMeta({
   title: 'RouteForge - API Route Documentation',
@@ -38,7 +45,7 @@ useSeoMeta({
           </p>
 
           <UButton
-            @click="login"
+            @click="handleLogin"
             icon="i-simple-icons-google"
             size="lg"
             block

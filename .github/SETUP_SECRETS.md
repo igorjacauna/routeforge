@@ -1,28 +1,23 @@
 # GitHub Actions - Setup Secrets
 
-This guide explains how to configure GitHub repository secrets for automatic database migrations.
+Configure GitHub secrets for automatic database migrations using Supabase CLI.
 
 ## Quick Setup
 
 ### 1. Get Supabase Credentials
 
-For **production** Supabase project:
+Go to [Supabase Dashboard](https://app.supabase.com):
 
-1. Go to [Supabase Dashboard](https://app.supabase.com)
-2. Select your **production** project
-3. Go to **Settings** → **API**
-4. Copy:
-   - **Project URL** → `SUPABASE_URL_PROD`
-   - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY_PROD`
+1. Click your **production** project
+2. Go to **Project Settings** → **General**
+3. Copy **Project Reference** (e.g., `abcdefghijklmnop`)
 
-⚠️ **Important:** Use `service_role` key (not anon key) for migrations!
-
-For **development** Supabase project (local use only):
-
-1. Go to [Supabase Dashboard](https://app.supabase.com)
-2. Select your **development** project
-3. Go to **Settings** → **API**
-4. Copy the same keys for local testing
+For **Access Token**:
+1. Click your avatar (bottom left)
+2. Go to **Access Tokens**
+3. Click **Generate New Token**
+4. Name it "GitHub Actions"
+5. Copy the token
 
 ### 2. Add Secrets to GitHub
 
@@ -31,102 +26,93 @@ For **development** Supabase project (local use only):
 3. Click **Secrets and variables** → **Actions** (left sidebar)
 4. Click **New repository secret**
 
-Add these **2 production secrets**:
+Add these **2 secrets**:
 
 | Secret Name | Value |
 |-------------|-------|
-| `SUPABASE_URL_PROD` | Your prod project URL (https://...) |
-| `SUPABASE_SERVICE_ROLE_KEY_PROD` | Prod service_role key ⚠️ Keep secret! |
+| `SUPABASE_PROD_PROJECT_REF` | Your prod project reference (e.g., `abcdefghijklmnop`) |
+| `SUPABASE_ACCESS_TOKEN` | Your personal access token ⚠️ Keep secret! |
 
-**Note:** Development secrets are NOT needed in GitHub (migrations only run on `main`). Use them locally with `pnpm migrate:dev`.
+**Note:** Dev secrets go in `.env.local` for local testing with `pnpm migrate:dev`.
 
 ### 3. Verify Setup
 
 1. Go to **Actions** tab in GitHub
-2. Click **Database Migration** workflow
+2. Click **DB Migrate** workflow
 3. Check that the latest run succeeded
 
 ## How It Works
 
-When you push to `development` or `main`:
+When you push to `main`:
 
 ```
-Push code
+Push code to main
   ↓
-GitHub detects new .sql files in server/migrations/
+GitHub detects new .sql files in supabase/migrations/
   ↓
-Runs Database Migration action
+Runs DB Migrate action
   ↓
-Uses SUPABASE_URL_DEV or SUPABASE_URL_PROD
+Links to prod project (SUPABASE_PROD_PROJECT_REF)
   ↓
-Uses SUPABASE_SERVICE_ROLE_KEY_DEV or _PROD
+Authenticates (SUPABASE_ACCESS_TOKEN)
   ↓
-Applies migrations
+Runs: supabase db push --linked --yes
   ↓
-Records in _migrations table
+Applies migrations automatically
   ↓
 ✅ Done (or ❌ Failed)
 ```
 
 ## Testing Locally
 
-To test migrations before pushing:
+Add to `.env.local`:
+
+```
+SUPABASE_DEV_PROJECT_REF=your-dev-project-ref
+SUPABASE_ACCESS_TOKEN=your-access-token
+```
+
+Then run:
 
 ```bash
-# Development environment
-export NUXT_PUBLIC_SUPABASE_URL="https://your-dev-project.supabase.co"
-export NUXT_SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-pnpm migrate
-
-# Or use the shorthand
 pnpm migrate:dev
 ```
 
 ## Common Issues
 
-### "Missing Supabase configuration"
+### "Project not linked"
 
-- Verify all 6 secrets are added
-- Check secret names are **exactly** as listed above (case-sensitive)
-- Restart the workflow after adding secrets
+```bash
+# Make sure you're linked to the right project
+supabase link --project-ref your-project-ref
+```
 
-### "Failed to authenticate"
+### "Unauthorized" error
 
-- Verify you're using `service_role` key, not `anon` key
-- Check the key hasn't expired in Supabase dashboard
+- Verify `SUPABASE_ACCESS_TOKEN` is valid
+- Check token hasn't been revoked in Supabase dashboard
+- Regenerate token if needed
 
 ### Workflow doesn't trigger
 
-- File must be in `server/migrations/` directory
-- File must end with `.sql` extension
-- Check the workflow file exists: `.github/workflows/database-migrate.yml`
+- Files must be in `supabase/migrations/` directory
+- Files must end with `.sql` extension
+- File names must start with timestamp: `20260430120000_description.sql`
+- Check workflow file: `.github/workflows/database-migrate.yml`
 
-## Secrets Reference
-
-### Why service_role key?
-
-- `anon` key: Limited access (for frontend use)
-- `service_role` key: Full admin access (for backend/migrations)
-
-Migrations need admin access to:
-- Create/alter tables
-- Create indexes
-- Manage roles and permissions
-- Execute DDL (Data Definition Language)
-
-### Security Best Practices
+## Security Best Practices
 
 ✅ **DO:**
-- Use `service_role` key only for migrations
-- Rotate keys periodically
-- Use different keys for dev and prod
+- Rotate access tokens periodically
+- Use different tokens for dev and prod
 - Don't commit secrets to git
+- Review who has access to GitHub secrets
 
 ❌ **DON'T:**
-- Share service_role key publicly
-- Use same key for frontend and backend
-- Put secrets in `.env` files (use GitHub Secrets)
+- Share access tokens publicly
+- Use same token for multiple projects
 - Log or print secrets in code
+- Commit `.env.local` files with real credentials
 
 ## Additional Resources
 

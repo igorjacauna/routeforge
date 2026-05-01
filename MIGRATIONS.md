@@ -2,21 +2,20 @@
 
 ## Overview
 
-RouteForge uses a migration system that:
-- Automatically applies migrations on push to `development` or `main` branches
-- Tracks applied migrations in a `_migrations` table
-- Can be run locally with `pnpm migrate`
+RouteForge uses Supabase CLI for migrations:
+- Migrations stored in `supabase/migrations/`
+- Applied via `supabase db push` command
+- Automatic CI/CD on push to `main` branch
+- Local development with `pnpm migrate:dev`
 
 ## Workflow
 
-### Local Development (Branch: `development`)
+### Local Development
 
-When working on the `development` branch:
-
-1. **Create a new migration file** in `server/migrations/`:
+1. **Create a new migration file** in `supabase/migrations/`:
    ```bash
-   # File naming: XXX_description.sql (e.g., 002_add_user_preferences.sql)
-   touch server/migrations/002_add_user_preferences.sql
+   # File naming follows Supabase convention: timestamp_description.sql
+   touch supabase/migrations/20260430120000_add_user_preferences.sql
    ```
 
 2. **Write your SQL** in the migration file:
@@ -26,33 +25,32 @@ When working on the `development` branch:
    CREATE INDEX idx_users_preferences ON users USING GIN (preferences);
    ```
 
-3. **Test locally on development project**:
+3. **Test locally**:
    ```bash
-   # Apply migrations to your development Supabase project
+   # Set your dev project ref in .env.local
+   SUPABASE_DEV_PROJECT_REF=your-dev-project-ref
+   SUPABASE_ACCESS_TOKEN=your-access-token
+   
+   # Apply migrations to development Supabase project
    pnpm migrate:dev
    ```
 
-4. **Commit and push to development**:
+4. **Commit and push**:
    ```bash
-   git add server/migrations/002_add_user_preferences.sql
+   git add supabase/migrations/20260430120000_add_user_preferences.sql
    git commit -m "feat: Add user preferences column"
-   git push origin development
+   git push origin your-branch
    ```
-
-5. **Manual verification** (no automatic action):
-   - You manually ran `pnpm migrate:dev` to test
-   - Migration is confirmed to work in dev environment
-   - Ready for production deployment
 
 ### Production Deployment (Branch: `main`)
 
 When ready to deploy to production:
 
-1. **Merge from `development` to `main`**:
+1. **Merge to `main`**:
    ```bash
    git checkout main
    git pull origin main
-   git merge origin/development
+   git merge origin/your-branch
    ```
 
 2. **Push to main**:
@@ -61,25 +59,29 @@ When ready to deploy to production:
    ```
 
 3. **GitHub Action runs automatically**:
-   - Detects new migration files in `server/migrations/`
-   - Applies them to the **production** Supabase project
-   - Creates `_migrations` table if it doesn't exist (first time)
-   - Records the migration as applied
-   - Fails the build if migration fails (safe deployment)
+   - Detects new migration files in `supabase/migrations/`
+   - Links production Supabase project using `SUPABASE_ACCESS_TOKEN`
+   - Applies migrations via `supabase db push --linked`
+   - Fails if any migration fails (safe deployment)
 
 ## Setting Up GitHub Secrets
 
-You need to configure secrets in your GitHub repository:
+For GitHub Actions CI/CD, add these **2 secrets** in repository settings:
 
-**For Development Environment:**
-- `SUPABASE_URL_DEV` — Your dev Supabase project URL
-- `SUPABASE_ANON_KEY_DEV` — Dev anon key
-- `SUPABASE_SERVICE_ROLE_KEY_DEV` — Dev service role key
+**Required for CI/CD:**
+- `SUPABASE_PROD_PROJECT_REF` — Your production project reference (e.g., `abcdefghijklmnop`)
+- `SUPABASE_ACCESS_TOKEN` — Personal access token from Supabase dashboard
 
-**For Production Environment:**
-- `SUPABASE_URL_PROD` — Your prod Supabase project URL
-- `SUPABASE_ANON_KEY_PROD` — Prod anon key
-- `SUPABASE_SERVICE_ROLE_KEY_PROD` — Prod service role key
+**For Local Development (in `.env.local`):**
+```
+SUPABASE_DEV_PROJECT_REF=your-dev-project-ref
+SUPABASE_ACCESS_TOKEN=your-access-token
+```
+
+### Getting Tokens
+
+1. **Project Ref**: Go to Supabase Dashboard → Project Settings → General (at the top)
+2. **Access Token**: Go to Supabase Dashboard → Account → Access Tokens
 
 ### How to Add Secrets
 
@@ -96,67 +98,79 @@ Value: https://your-project.supabase.co
 
 ## Migration File Naming
 
-Use this format for migration files:
+Supabase uses timestamp-based naming:
 
 ```
-XXX_description.sql
-^^^
-|-- Sequential number (001, 002, 003, etc.)
+20260430120000_description.sql
+^^^^^^^^^^^^^^^^
+|-- ISO 8601 timestamp (YYYYMMDDhhmmss)
 ```
 
 Examples:
-- `001_create_initial_schema.sql`
-- `002_add_user_preferences.sql`
-- `003_create_share_links_table.sql`
-- `004_add_rls_policies.sql`
+- `20260430100000_create_initial_schema.sql`
+- `20260430110000_add_auth_trigger.sql`
+- `20260501080000_add_user_preferences.sql`
+
+**Why timestamps?** Prevents naming conflicts when multiple developers create migrations simultaneously.
 
 ## Running Migrations Locally
 
 ### Apply to Development Project
 ```bash
+# Ensure .env.local has:
+# SUPABASE_DEV_PROJECT_REF=your-dev-project-ref
+# SUPABASE_ACCESS_TOKEN=your-access-token
+
 pnpm migrate:dev
 ```
 
-### Apply to Production Project
+### Apply to Production Project (for testing)
 ```bash
+# Ensure .env.local has:
+# SUPABASE_PROD_PROJECT_REF=your-prod-project-ref
+# SUPABASE_ACCESS_TOKEN=your-access-token
+
 pnpm migrate:prod
 ```
 
-### Apply to Current Project (via env vars)
+### Manual Migration (Direct CLI)
 ```bash
-export NUXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
-export NUXT_SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-
-pnpm migrate
+# Requires Supabase CLI installed: npm i -g supabase
+supabase link --project-ref your-project-ref
+supabase db push --linked
 ```
 
 ## Migration Tracking
 
-Migrations are tracked in the `_migrations` table:
+Supabase CLI automatically tracks applied migrations in the `schema_migrations` table:
 
 ```sql
-SELECT * FROM _migrations;
+SELECT * FROM schema_migrations;
 -- Returns:
--- id | name | executed_at
--- 1  | 001_create_initial_schema.sql | 2024-04-30 14:30:00
--- 2  | 002_add_user_preferences.sql  | 2024-04-30 14:35:00
+-- version | name | success | executed_at
+-- 1  | 20260430100000_create_initial_schema | true | 2026-04-30 10:00:00
+-- 2  | 20260430110000_add_auth_trigger     | true | 2026-04-30 11:00:00
 ```
+
+No manual tracking needed — the CLI handles it.
 
 ## Rollback (Manual)
 
-Since this is a forward-only migration system, rollbacks are manual:
+Supabase uses forward-only migrations. To rollback:
 
 1. **Create a new migration** with the rollback SQL:
    ```sql
-   -- 003_rollback_preferences.sql
+   -- 20260430130000_rollback_preferences.sql
    ALTER TABLE users DROP COLUMN preferences;
    DROP INDEX idx_users_preferences;
    ```
 
 2. **Run the migration**:
    ```bash
-   pnpm migrate
+   pnpm migrate:dev
    ```
+
+**Note:** There's no automatic rollback — each migration is permanent. Design migrations carefully and test locally first.
 
 ## Best Practices
 
@@ -194,23 +208,41 @@ CREATE TABLE users (
 
 ### Migration fails locally
 
-1. Check Supabase credentials in `.env.local`
-2. Verify the service role key has admin permissions
-3. Check SQL syntax errors in the migration file
-4. Review the `_migrations` table to see what's been applied
+1. Ensure Supabase CLI is installed: `pnpm i -g supabase`
+2. Check `.env.local` has valid `SUPABASE_DEV_PROJECT_REF` and `SUPABASE_ACCESS_TOKEN`
+3. Check SQL syntax — Supabase will report syntax errors clearly
+4. Verify the migration file is in `supabase/migrations/` with `.sql` extension
+5. Check that the file name follows timestamp format: `20260430120000_description.sql`
+
+**Debug:**
+```bash
+supabase status  # Check if linked correctly
+supabase db list  # List applied migrations
+```
 
 ### GitHub Action doesn't run
 
-1. Check that you've added all required secrets
-2. Verify the migration files are in `server/migrations/` and end with `.sql`
-3. Check the workflow file path: `.github/workflows/database-migrate.yml`
-4. View Action logs in GitHub: **Actions** tab → **Database Migration**
+1. Verify migration files are in `supabase/migrations/` with `.sql` extension
+2. Check the workflow file: `.github/workflows/database-migrate.yml`
+3. View Action logs: **GitHub** → **Actions** tab → **DB Migrate**
 
-### Secrets not found
+### "Project not linked" error
+
+```bash
+# Verify you're linked to the correct project
+supabase status
+
+# Re-link if needed
+supabase link --project-ref your-project-ref
+```
+
+### Secrets not found in GitHub
 
 1. Go to **Settings** → **Secrets and variables** → **Actions**
-2. Verify all 6 secrets are present
-3. Secrets are case-sensitive: `SUPABASE_URL_DEV` ≠ `supabase_url_dev`
+2. Add these 2 secrets:
+   - `SUPABASE_PROD_PROJECT_REF` (your production project reference)
+   - `SUPABASE_ACCESS_TOKEN` (personal access token)
+3. Secrets are case-sensitive
 
 ## Integration with CI/CD
 

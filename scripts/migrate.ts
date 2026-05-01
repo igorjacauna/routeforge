@@ -1,113 +1,39 @@
-import { createClient } from '@supabase/supabase-js'
-import { readFileSync, readdirSync } from 'fs'
-import { join } from 'path'
+import 'dotenv/config'
+import { execa } from 'execa'
 
-const supabaseUrl = process.env.NUXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.NUXT_SUPABASE_SERVICE_ROLE_KEY
+const projectRef = process.env.SUPABASE_PROJECT_REF
+const accessToken = process.env.NUXT_SUPABASE_SECRET_KEY
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Missing Supabase configuration')
-  console.error('Set NUXT_PUBLIC_SUPABASE_URL and NUXT_SUPABASE_SERVICE_ROLE_KEY')
+if (!projectRef) {
+  console.error('❌ Missing SUPABASE_PROJECT_REF')
+  console.error('Set SUPABASE_PROJECT_REF in .env or pass as env var')
   process.exit(1)
 }
 
-const db = createClient(supabaseUrl, supabaseServiceKey)
-
-async function getMigrationsToRun() {
-  // Get list of migrations already applied
-  const { data: appliedMigrations, error } = await db
-    .from('_migrations')
-    .select('name')
-    .order('name')
-
-  if (error && error.code !== 'PGRST116') {
-    // PGRST116 = relation does not exist (first migration)
-    throw error
-  }
-
-  const appliedNames = new Set((appliedMigrations || []).map((m: any) => m.name))
-
-  // Get list of migration files in server/migrations
-  const migrationsDir = join(process.cwd(), 'server', 'migrations')
-  const files = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-
-  return files.filter((f) => !appliedNames.has(f))
+if (!accessToken) {
+  console.error('❌ Missing NUXT_SUPABASE_SECRET_KEY')
+  console.error('Set NUXT_SUPABASE_SECRET_KEY in .env or pass as env var')
+  process.exit(1)
 }
 
-async function runMigration(filename: string, sql: string) {
-  try {
-    // Create _migrations table if it doesn't exist
-    await db.rpc('exec', {
-      sql: `
-        CREATE TABLE IF NOT EXISTS _migrations (
-          id BIGSERIAL PRIMARY KEY,
-          name TEXT UNIQUE NOT NULL,
-          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `
-    }).catch(() => {
-      // Table might already exist, ignore error
-    })
+try {
+  console.log(`🔗 Linking to project: ${projectRef}`)
+  await execa('supabase', ['link', '--project-ref', projectRef], {
+    stdio: 'inherit',
+    env: { ...process.env, SUPABASE_ACCESS_TOKEN: accessToken }
+  })
 
-    // Execute migration SQL
-    const { error } = await db.rpc('exec', { sql })
+  console.log('📦 Pushing migrations...')
+  await execa('supabase', ['db', 'push', '--linked', '--yes'], {
+    stdio: 'inherit',
+    env: { ...process.env, SUPABASE_ACCESS_TOKEN: accessToken }
+  })
 
-    if (error) {
-      throw error
-    }
-
-    // Record migration as applied
-    await db.from('_migrations').insert({ name: filename })
-
-    return true
-  } catch (err) {
-    console.error(`❌ Failed to run migration ${filename}:`, err)
-    return false
+  console.log('✅ Migrations applied successfully')
+} catch (err) {
+  console.error('❌ Migration failed')
+  if (err instanceof Error) {
+    console.error('Error:', err.message)
   }
+  process.exit(1)
 }
-
-async function main() {
-  try {
-    console.log('🔍 Checking for pending migrations...')
-
-    const migrationsToRun = await getMigrationsToRun()
-
-    if (migrationsToRun.length === 0) {
-      console.log('✅ No pending migrations')
-      return
-    }
-
-    console.log(`📦 Found ${migrationsToRun.length} migration(s) to apply:`)
-    migrationsToRun.forEach((m) => console.log(`  - ${m}`))
-    console.log()
-
-    let successCount = 0
-
-    for (const filename of migrationsToRun) {
-      const filepath = join(process.cwd(), 'server', 'migrations', filename)
-      const sql = readFileSync(filepath, 'utf-8')
-
-      console.log(`⏳ Applying ${filename}...`)
-
-      const success = await runMigration(filename, sql)
-
-      if (success) {
-        console.log(`✅ Applied ${filename}`)
-        successCount++
-      } else {
-        console.error(`❌ Failed ${filename}`)
-        process.exit(1)
-      }
-    }
-
-    console.log()
-    console.log(`✅ Successfully applied ${successCount} migration(s)`)
-  } catch (err) {
-    console.error('❌ Migration error:', err)
-    process.exit(1)
-  }
-}
-
-main()

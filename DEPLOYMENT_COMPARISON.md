@@ -101,8 +101,8 @@ firebase deploy --only hosting
 
 ```
 NUXT_PUBLIC_SUPABASE_URL=https://...supabase.co
-NUXT_PUBLIC_SUPABASE_ANON_KEY=<key>
-NUXT_SUPABASE_SERVICE_ROLE_KEY=<key>
+NUXT_PUBLIC_SUPABASE_KEY=<anon_key>
+NUXT_SUPABASE_SECRET_KEY=<service_role_key>
 NUXT_PUBLIC_GOOGLE_CLIENT_ID=<google_oauth>
 GOOGLE_CLIENT_SECRET=<google_oauth>
 UPSTASH_REDIS_REST_URL=<upstash>

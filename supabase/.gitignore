@@ -1,0 +1,11 @@
+# Supabase local environment
+.env.local
+.env.*.local
+supabase/functions/.env.local
+**/node_modules/
+.DS_Store
+
+# Supabase
+.branches
+.temp
+.env

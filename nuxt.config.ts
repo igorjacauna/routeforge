@@ -8,17 +8,22 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  runtimeConfig: {
+    supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY,
+    public: {
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY
+    }
+  },
+
   supabase: {
-    redirect: false,
+    redirect: true,
+    useSsrCookies: true,
     redirectOptions: {
       login: '/',
       callback: '/auth/callback',
       exclude: []
     }
-  },
-
-  routeRules: {
-    '/': { prerender: true }
   },
 
   compatibilityDate: '2025-01-15',

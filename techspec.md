@@ -682,15 +682,16 @@ monaco.languages.setMonarchTokensProvider('routeforge', {
 ### Development
 ```bash
 # Local setup
-npm install
+pnpm install
 cp .env.example .env.local
 
-# Set Supabase credentials
-NUXT_PUBLIC_SUPABASE_URL=<local_or_dev_project>
-NUXT_PUBLIC_SUPABASE_ANON_KEY=<key>
+# Set Supabase credentials in .env.local
+NUXT_PUBLIC_SUPABASE_URL=https://your-dev-project.supabase.co
+NUXT_PUBLIC_SUPABASE_KEY=<your-anon-key>
+NUXT_SUPABASE_SECRET_KEY=<your-service-role-key>
 
 # Start dev server with WebSocket support
-npm run dev
+pnpm dev
 ```
 
 ### Production on Firebase App Hosting
@@ -715,8 +716,8 @@ npm run dev
 2. **Environment Variables** (Firebase Console → Settings → Environment)
    ```
    NUXT_PUBLIC_SUPABASE_URL=https://...supabase.co
-   NUXT_PUBLIC_SUPABASE_ANON_KEY=<production_key>
-   NUXT_SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
+   NUXT_PUBLIC_SUPABASE_KEY=<production_anon_key>
+   NUXT_SUPABASE_SECRET_KEY=<production_service_role_key>
    NUXT_PUBLIC_GOOGLE_CLIENT_ID=<google_oauth_client_id>
    GOOGLE_CLIENT_SECRET=<google_oauth_secret>
    UPSTASH_REDIS_REST_URL=<from_upstash_dashboard>
@@ -784,8 +785,8 @@ services:
       - '3000:3000'
     environment:
       - NUXT_PUBLIC_SUPABASE_URL
-      - NUXT_PUBLIC_SUPABASE_ANON_KEY
-      - NUXT_SUPABASE_SERVICE_ROLE_KEY
+      - NUXT_PUBLIC_SUPABASE_KEY
+      - NUXT_SUPABASE_SECRET_KEY
       - UPSTASH_REDIS_REST_URL
       - UPSTASH_REDIS_REST_TOKEN
       - NUXT_PUBLIC_GOOGLE_CLIENT_ID

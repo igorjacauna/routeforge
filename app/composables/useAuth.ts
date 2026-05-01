@@ -1,53 +1,100 @@
-import { ref } from 'vue'
-
-const user = ref(null)
-const isLoading = ref(false)
-
 export const useAuth = () => {
-  const { signOut } = useSupabaseAuthClient()
+  const client = useSupabaseClient()
+  const user = useSupabaseUser()
   const router = useRouter()
 
   const login = async () => {
-    try {
-      isLoading.value = true
-      // Redirect to Google OAuth endpoint
-      window.location.href = '/api/auth/google'
-    } catch (err) {
-      console.error('Login error:', err)
-    } finally {
-      isLoading.value = false
-    }
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    if (error) console.error('Login error:', error)
   }
 
   const logout = async () => {
+    const { error } = await client.auth.signOut()
+    if (error) console.error('Logout error:', error)
+    await router.push('/')
+  }
+
+  const checkAuthStatus = async (): Promise<boolean> => {
     try {
-      isLoading.value = true
-      await signOut()
-      user.value = null
-      await router.push('/')
+      const { data } = await client.auth.getSession()
+      return !!data?.session?.user
     } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      isLoading.value = false
+      console.error('checkAuthStatus error:', err)
+      return false
     }
   }
 
-  const getUser = async () => {
+  const getFirstWorkspace = async () => {
     try {
-      const { data: { user: currentUser } } = await useSupabaseAuthClient().auth.getUser()
-      user.value = currentUser
-      return currentUser
+      if (!user.value?.id) return null
+
+      const { data, error } = await client
+        .from('workspaces')
+        .select('id, name, description')
+        .eq('owner_id', user.value.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') return null
+        throw error
+      }
+      return data
     } catch (err) {
-      console.error('Get user error:', err)
+      console.error('getFirstWorkspace error:', err)
+      return null
+    }
+  }
+
+  const getUserWorkspaces = async () => {
+    try {
+      if (!user.value?.id) return []
+
+      const { data, error } = await client
+        .from('workspaces')
+        .select('id, name, description, owner_id')
+        .eq('owner_id', user.value.id)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      return data || []
+    } catch (err) {
+      console.error('getUserWorkspaces error:', err)
+      return []
+    }
+  }
+
+  const getProfile = async () => {
+    try {
+      if (!user.value?.id) return null
+
+      const { data, error } = await client
+        .from('users')
+        .select('*')
+        .eq('id', user.value.id)
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (err) {
+      console.error('getProfile error:', err)
       return null
     }
   }
 
   return {
     user: readonly(user),
-    isLoading: readonly(isLoading),
     login,
     logout,
-    getUser
+    checkAuthStatus,
+    getFirstWorkspace,
+    getUserWorkspaces,
+    getProfile
   }
 }
