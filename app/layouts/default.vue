@@ -1,31 +1,59 @@
 <script setup lang="ts">
 const { logout, user } = useAuth()
+
+const userInitials = computed(() => {
+  const email = user.value?.email ?? ''
+  return email.slice(0, 2).toUpperCase() || '?'
+})
+
+const userMenu = computed(() => [
+  [
+    {
+      label: user.value?.email ?? 'User',
+      slot: 'account',
+      disabled: true
+    }
+  ],
+  [
+    {
+      label: 'Logout',
+      icon: 'i-lucide-log-out',
+      onSelect: logout
+    }
+  ]
+])
 </script>
 
 <template>
-  <div class="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-    <!-- Header -->
-    <header class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800">
-      <div class="px-6 py-3 flex items-center justify-between">
-        <h1 class="text-xl font-bold text-gray-900 dark:text-white">
-          RouteForge
-        </h1>
+  <div class="flex flex-col h-screen bg-default">
+    <UHeader :ui="{ root: 'border-b border-default', container: 'h-14' }">
+      <template #left>
+        <NuxtLink to="/" class="flex items-center gap-2">
+          <UIcon name="i-lucide-route" class="size-6 text-primary" />
+          <span class="text-lg font-bold tracking-tight">RouteForge</span>
+        </NuxtLink>
+      </template>
 
-        <div class="flex items-center gap-3">
-          <UDropdown
-            :items="[[{ label: 'Logout', icon: 'i-heroicons-arrow-left-on-rectangle', click: logout }]]"
-          >
-            <UButton variant="ghost" icon="i-heroicons-user-circle">
-              {{ user?.email || 'User' }}
-            </UButton>
-          </UDropdown>
-        </div>
-      </div>
-    </header>
+      <template #right>
+        <UDropdownMenu :items="userMenu" :content="{ align: 'end' }">
+          <UButton variant="ghost" color="neutral" size="sm" class="gap-2">
+            <UAvatar :alt="userInitials" size="xs" />
+            <span class="hidden md:inline text-sm">{{ user?.email }}</span>
+            <UIcon name="i-lucide-chevron-down" class="size-3.5 opacity-60" />
+          </UButton>
 
-    <!-- Main Content -->
-    <div class="flex-1 overflow-hidden">
+          <template #account>
+            <div class="flex flex-col gap-0.5 px-1.5 py-1">
+              <span class="text-xs text-muted">Signed in as</span>
+              <span class="truncate text-sm font-medium">{{ user?.email }}</span>
+            </div>
+          </template>
+        </UDropdownMenu>
+      </template>
+    </UHeader>
+
+    <UMain class="flex-1 min-h-0 flex flex-col">
       <NuxtPage />
-    </div>
+    </UMain>
   </div>
 </template>

@@ -5,18 +5,16 @@ definePageMeta({
 })
 
 const route = useRoute()
-const router = useRouter()
 const workspaceId = route.params.id as string
 
-// Composables
 const {
   files,
   folders,
   isLoading,
+  pendingItems,
   fetchWorkspace,
   createFile,
   createFolder,
-  updateFile,
   deleteFile,
   renameFile,
   renameFolder,
@@ -27,31 +25,28 @@ const {
 
 const {
   selectedFileId,
-  expandedFolderIds,
-  selectFile,
-  toggleFolder
+  selectFile
 } = useWorkspaceUI()
 
-const fileContent = ref('')
-const isSaving = ref(false)
-const saveTimeout = ref<NodeJS.Timeout | null>(null)
+const toast = useToast()
+
 const breadcrumbs = ref<Array<{ id: string; name: string }>>([])
+const editorSaveState = ref<'idle' | 'saving' | 'saved'>('idle')
 
 useSeoMeta({
   title: 'Workspace - RouteForge'
 })
 
-// Current file derived from selectedFileId
 const currentFile = computed(() => {
   if (!selectedFileId.value) return null
   return files.value.find((f) => f.id === selectedFileId.value)
 })
 
-// Update breadcrumbs when file is selected
 watch(
   () => selectedFileId.value,
   () => {
     updateBreadcrumbs()
+    editorSaveState.value = 'idle'
   }
 )
 
@@ -62,7 +57,6 @@ const updateBreadcrumbs = () => {
   const file = files.value.find((f) => f.id === selectedFileId.value)
   if (!file) return
 
-  // Build breadcrumb path by walking up the folder tree
   let currentFolderId = file.parentFolderId
 
   while (currentFolderId) {
@@ -74,42 +68,10 @@ const updateBreadcrumbs = () => {
   }
 }
 
-// Handle file selection
 const handleSelectFile = (fileId: string) => {
   selectFile(fileId)
-  const file = files.value.find((f) => f.id === fileId)
-  if (file) {
-    fileContent.value = file.content || ''
-  }
 }
 
-// Handle content changes with debounced save
-const handleContentChange = (newContent: string) => {
-  fileContent.value = newContent
-
-  if (saveTimeout.value) {
-    clearTimeout(saveTimeout.value)
-  }
-
-  saveTimeout.value = setTimeout(() => {
-    saveFile()
-  }, 2000)
-}
-
-const saveFile = async () => {
-  if (!currentFile.value) return
-
-  try {
-    isSaving.value = true
-    await updateFile(currentFile.value.id, fileContent.value)
-  } catch (err) {
-    console.error('Save error:', err)
-  } finally {
-    isSaving.value = false
-  }
-}
-
-// File operations
 const handleCreateFile = async (parentFolderId: string | null, name: string) => {
   try {
     const file = await createFile(workspaceId, name, parentFolderId || undefined)
@@ -144,7 +106,6 @@ const handleDelete = async (id: string, type: 'file' | 'folder') => {
     if (type === 'file') {
       if (selectedFileId.value === id) {
         selectFile(null)
-        fileContent.value = ''
       }
       await deleteFile(id)
     } else {
@@ -158,21 +119,32 @@ const handleDelete = async (id: string, type: 'file' | 'folder') => {
 const handleMove = async (id: string, newParentId: string | null, type: 'file' | 'folder') => {
   try {
     if (type === 'file') {
-      await moveFile(id, newParentId || '')
+      await moveFile(id, newParentId)
     } else {
-      await moveFolder(id, newParentId || '')
+      await moveFolder(id, newParentId)
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Move error:', err)
+    toast.add({
+      title: `Failed to move ${type}`,
+      description: err?.statusMessage || err?.message || 'Please try again.',
+      color: 'error',
+      icon: 'i-lucide-alert-triangle'
+    })
   }
 }
 
-const handleBreadcrumbNavigate = (folderId: string | null) => {
+const handleBreadcrumbNavigate = () => {
   selectFile(null)
-  fileContent.value = ''
 }
 
-// Initialize
+const handleCreateFirstFile = () => {
+  const name = window.prompt('File name:', 'untitled.route')
+  if (name?.trim()) {
+    handleCreateFile(null, name.trim())
+  }
+}
+
 onMounted(async () => {
   try {
     await fetchWorkspace(workspaceId)
@@ -180,30 +152,20 @@ onMounted(async () => {
     console.error('Error loading workspace:', err)
   }
 })
-
-onUnmounted(() => {
-  if (saveTimeout.value) {
-    clearTimeout(saveTimeout.value)
-  }
-})
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <!-- Breadcrumb Navigation -->
-    <BreadcrumbNav
-      :breadcrumbs="breadcrumbs"
-      @navigate="handleBreadcrumbNavigate"
-    />
-
-    <!-- Main Editor Area -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- File Explorer Sidebar -->
+  <div class="flex flex-1 min-h-0 overflow-hidden">
+    <!-- Sidebar: File Explorer -->
+    <aside
+      class="w-64 shrink-0 border-r border-default bg-elevated/30 flex flex-col min-h-0"
+    >
       <FileExplorer
         :files="files"
         :folders="folders"
         :selected-file-id="selectedFileId"
         :is-loading="isLoading"
+        :pending-items="pendingItems"
         @select-file="handleSelectFile"
         @create-file="handleCreateFile"
         @create-folder="handleCreateFolder"
@@ -211,47 +173,87 @@ onUnmounted(() => {
         @delete="handleDelete"
         @move="handleMove"
       />
+    </aside>
 
-      <!-- Editor Panel -->
-      <main class="flex-1 flex flex-col overflow-hidden">
-        <!-- Editor Header -->
-        <div
-          v-if="currentFile"
-          class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 px-6 py-3 flex items-center justify-between"
-        >
-          <div>
-            <h2 class="font-semibold text-gray-900 dark:text-white">
-              {{ currentFile.name }}
-            </h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ isSaving ? 'Saving...' : 'All changes saved' }}
-            </p>
-          </div>
+    <!-- Editor area -->
+    <section class="flex-1 flex flex-col min-w-0 min-h-0">
+      <!-- File header -->
+      <header
+        v-if="currentFile"
+        class="flex items-center justify-between gap-3 border-b border-default bg-default px-6 h-12 shrink-0"
+      >
+        <div class="flex items-center gap-3 min-w-0">
+          <BreadcrumbNav
+            :breadcrumbs="breadcrumbs"
+            @navigate="handleBreadcrumbNavigate"
+          />
+          <UIcon name="i-lucide-chevron-right" class="size-4 text-muted shrink-0" />
+          <UIcon name="i-lucide-file-code-2" class="size-4 text-primary shrink-0" />
+          <span class="font-medium text-sm truncate">{{ currentFile.name }}</span>
         </div>
 
-        <!-- Editor Component -->
+        <div class="flex items-center gap-3 shrink-0">
+          <Transition
+            enter-active-class="transition-opacity duration-150"
+            enter-from-class="opacity-0"
+            leave-active-class="transition-opacity duration-150"
+            leave-to-class="opacity-0"
+            mode="out-in"
+          >
+            <div
+              v-if="editorSaveState === 'saving'"
+              class="flex items-center gap-1.5 text-xs text-muted"
+            >
+              <UIcon name="i-lucide-loader-2" class="size-3.5 animate-spin" />
+              <span>Saving...</span>
+            </div>
+            <div
+              v-else-if="editorSaveState === 'saved'"
+              class="flex items-center gap-1.5 text-xs text-success"
+            >
+              <UIcon name="i-lucide-check" class="size-3.5" />
+              <span>Saved</span>
+            </div>
+            <div v-else class="text-xs text-muted/60">All changes saved</div>
+          </Transition>
+        </div>
+      </header>
+
+      <!-- Editor or empty state -->
+      <div class="flex-1 min-h-0 flex flex-col">
         <RouteEditor
           v-if="currentFile"
           :key="currentFile.id"
-          :content="fileContent"
+          :file-id="currentFile.id"
           :file-name="currentFile.name"
-          @update:content="handleContentChange"
-          @save="saveFile"
+          @save-state-change="editorSaveState = $event"
         />
 
-        <!-- Empty State -->
-        <div v-else class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div class="text-center">
-            <UIcon
-              name="i-heroicons-document-text"
-              class="w-12 h-12 text-gray-400 mx-auto mb-4"
-            />
-            <p class="text-gray-500 dark:text-gray-400">
-              Select a file to edit
+        <div
+          v-else
+          class="flex-1 flex items-center justify-center bg-elevated/20"
+        >
+          <div class="text-center max-w-sm px-6">
+            <div
+              class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"
+            >
+              <UIcon name="i-lucide-file-plus-2" class="size-7" />
+            </div>
+            <h3 class="text-base font-semibold mb-1">No file selected</h3>
+            <p class="text-sm text-muted mb-5">
+              Select a file from the sidebar to start editing, or create a new one.
             </p>
+            <UButton
+              icon="i-lucide-plus"
+              color="primary"
+              size="sm"
+              @click="handleCreateFirstFile"
+            >
+              New file
+            </UButton>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </section>
   </div>
 </template>

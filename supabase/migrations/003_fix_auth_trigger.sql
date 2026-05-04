@@ -7,7 +7,7 @@ BEGIN
     NEW.id,
     NEW.email,
     NEW.raw_user_meta_data->>'full_name',
-    (NEW.raw_user_meta_data->>'full_name')::text SPLIT_PART(' ', 1)
+    SPLIT_PART(COALESCE(NEW.raw_user_meta_data->>'full_name', ''), ' ', 1)
   );
 
   -- Create default workspace for new user

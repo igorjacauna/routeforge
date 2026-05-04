@@ -8,20 +8,20 @@
     />
     <div
       v-if="visible"
-      class="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1"
+      class="fixed z-50 min-w-[160px] bg-default rounded-lg shadow-lg border border-default py-1 ring-1 ring-default"
       :style="{ top: y + 'px', left: x + 'px' }"
     >
       <button
         v-for="item in items"
         :key="item.id"
-        @click="selectItem(item)"
         :class="[
-          'w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
-          item.dangerous ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'
+          'w-full px-3 py-1.5 text-left text-sm flex items-center gap-2.5 hover:bg-elevated transition-colors',
+          item.dangerous ? 'text-error' : 'text-default'
         ]"
+        @click="selectItem(item)"
       >
-        <UIcon :name="item.icon" class="w-4 h-4" />
-        {{ item.label }}
+        <UIcon :name="item.icon" class="size-4" />
+        <span>{{ item.label }}</span>
       </button>
     </div>
   </Teleport>

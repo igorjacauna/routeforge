@@ -29,14 +29,26 @@ export const useAuth = () => {
     }
   }
 
+  // Resolves public.users.id from auth.users.id
+  const getPublicUserId = async (): Promise<string | null> => {
+    if (!user.value?.id) return null
+    const { data } = await client
+      .from('users')
+      .select('id')
+      .eq('auth_id', user.value.id)
+      .single()
+    return data?.id ?? null
+  }
+
   const getFirstWorkspace = async () => {
     try {
-      if (!user.value?.id) return null
+      const publicUserId = await getPublicUserId()
+      if (!publicUserId) return null
 
       const { data, error } = await client
         .from('workspaces')
         .select('id, name, description')
-        .eq('owner_id', user.value.id)
+        .eq('owner_id', publicUserId)
         .order('created_at', { ascending: true })
         .limit(1)
         .single()
@@ -54,12 +66,13 @@ export const useAuth = () => {
 
   const getUserWorkspaces = async () => {
     try {
-      if (!user.value?.id) return []
+      const publicUserId = await getPublicUserId()
+      if (!publicUserId) return []
 
       const { data, error } = await client
         .from('workspaces')
         .select('id, name, description, owner_id')
-        .eq('owner_id', user.value.id)
+        .eq('owner_id', publicUserId)
         .order('created_at', { ascending: true })
 
       if (error) throw error
@@ -77,7 +90,7 @@ export const useAuth = () => {
       const { data, error } = await client
         .from('users')
         .select('*')
-        .eq('id', user.value.id)
+        .eq('auth_id', user.value.id)
         .single()
 
       if (error) throw error

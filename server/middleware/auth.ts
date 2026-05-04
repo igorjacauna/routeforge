@@ -1,3 +1,5 @@
+import { serverSupabaseUser } from '~~/server/utils/auth'
+
 export default defineEventHandler(async (event) => {
   // Skip auth check for public routes
   const publicRoutes = ['/', '/auth/callback']

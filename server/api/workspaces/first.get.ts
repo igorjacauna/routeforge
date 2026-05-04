@@ -1,3 +1,7 @@
+import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseUser } from '~~/server/utils/auth'
+import { getPublicUserId } from '~~/server/utils/publicUser'
+
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
 
@@ -10,17 +14,21 @@ export default defineEventHandler(async (event) => {
 
   try {
     const client = await serverSupabaseClient(event)
+    const publicUserId = await getPublicUserId(client, user.id)
+
+    if (!publicUserId) {
+      return { workspace: null }
+    }
 
     const { data, error } = await client
       .from('workspaces')
       .select('id, name, description')
-      .eq('owner_id', user.id)
+      .eq('owner_id', publicUserId)
       .order('created_at', { ascending: true })
       .limit(1)
       .single()
 
     if (error && error.code === 'PGRST116') {
-      // No workspace found - retorna null
       return { workspace: null }
     }
 

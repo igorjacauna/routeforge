@@ -1,3 +1,7 @@
+import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseUser } from '~~/server/utils/auth'
+import { getPublicUserId } from '~~/server/utils/publicUser'
+
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
 
@@ -19,13 +23,20 @@ export default defineEventHandler(async (event) => {
 
   try {
     const client = await serverSupabaseClient(event)
+    const publicUserId = await getPublicUserId(client, user.id)
 
-    // Verify workspace ownership
+    if (!publicUserId) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Access denied'
+      })
+    }
+
     const { data: workspace, error: workspaceError } = await client
       .from('workspaces')
       .select('id')
       .eq('id', workspaceId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', publicUserId)
       .single()
 
     if (workspaceError || !workspace) {
@@ -35,20 +46,19 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Create folder
-    const { data: folder, error: createError: createErr } = await client
+    const { data: folder, error: folderError } = await client
       .from('folders')
       .insert({
         workspace_id: workspaceId,
         name: name.trim(),
         parent_folder_id: parentFolderId || null,
-        created_by_id: user.id
+        created_by_id: publicUserId
       })
       .select()
       .single()
 
-    if (createErr || !folder) {
-      throw createErr || new Error('Failed to create folder')
+    if (folderError || !folder) {
+      throw folderError || new Error('Failed to create folder')
     }
 
     return folder

@@ -3,6 +3,8 @@
  * Handles file selection, folder expansion, context menu, renaming, etc
  */
 
+import { ref, readonly } from 'vue'
+
 export interface ContextMenuState {
   visible: boolean
   x: number

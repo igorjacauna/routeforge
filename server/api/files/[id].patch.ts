@@ -1,3 +1,7 @@
+import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseUser } from '~~/server/utils/auth'
+import { getPublicUserId } from '~~/server/utils/publicUser'
+
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   const fileId = event.context.params?.id
@@ -10,9 +14,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { content, name, folderId } = body
+  const { content, name } = body
+  const folderId: string | null | undefined =
+    body.folderId === '' ? null : body.folderId
 
-  // Validate at least one field is provided
   if (!content && !name && folderId === undefined) {
     throw createError({
       statusCode: 400,
@@ -23,7 +28,6 @@ export default defineEventHandler(async (event) => {
   try {
     const client = await serverSupabaseClient(event)
 
-    // Get file and verify ownership
     const { data: file, error: getError } = await client
       .from('files')
       .select('workspace_id, folder_id')
@@ -38,12 +42,20 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verify workspace ownership
+    const publicUserId = await getPublicUserId(client, user.id)
+
+    if (!publicUserId) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Access denied'
+      })
+    }
+
     const { data: workspace, error: workspaceError } = await client
       .from('workspaces')
       .select('id')
       .eq('id', file.workspace_id)
-      .eq('owner_id', user.id)
+      .eq('owner_id', publicUserId)
       .single()
 
     if (workspaceError || !workspace) {
@@ -53,9 +65,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Build update object
-    const updateData: any = {
-      updated_by_id: user.id,
+    const updateData: Record<string, unknown> = {
+      updated_by_id: publicUserId,
       updated_at: new Date().toISOString()
     }
 
@@ -69,10 +80,24 @@ export default defineEventHandler(async (event) => {
     }
 
     if (folderId !== undefined) {
+      if (folderId !== null) {
+        const { data: targetFolder, error: folderError } = await client
+          .from('folders')
+          .select('id')
+          .eq('id', folderId)
+          .eq('workspace_id', file.workspace_id)
+          .single()
+
+        if (folderError || !targetFolder) {
+          throw createError({
+            statusCode: 400,
+            statusMessage: 'Target folder not found or does not belong to this workspace'
+          })
+        }
+      }
       updateData.folder_id = folderId || null
     }
 
-    // Update file
     const { data: updated, error: updateError } = await client
       .from('files')
       .update(updateData)
@@ -80,8 +105,21 @@ export default defineEventHandler(async (event) => {
       .select()
       .single()
 
-    if (updateError || !updated) {
-      throw updateError || new Error('Failed to update file')
+    if (updateError) {
+      if (updateError.code === '23505') {
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'A file with this name already exists in the target folder'
+        })
+      }
+      throw updateError
+    }
+
+    if (!updated) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to update file'
+      })
     }
 
     return updated

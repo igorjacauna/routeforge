@@ -3,48 +3,65 @@
     <!-- Folder Header -->
     <div
       v-if="isFolder"
-      class="folder-header flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer group"
-      :style="{ paddingLeft: depth * 16 + 8 + 'px' }"
+      class="folder-header flex items-center gap-1.5 pr-2 py-1 rounded-md hover:bg-elevated cursor-pointer group transition-all"
+      :style="{ paddingLeft: depth * 14 + 6 + 'px' }"
+      :class="{
+        'bg-primary/10 ring-1 ring-primary/30': isDragOver,
+        'opacity-60 pointer-events-none': isPending
+      }"
+      :draggable="!isPending"
       @click="toggleFolder"
       @contextmenu="showContextMenu"
-      draggable="true"
       @dragstart="dragStart"
       @dragover="dragOver"
       @drop="drop"
       @dragleave="dragLeave"
-      :class="{ 'bg-blue-50 dark:bg-blue-900': isDragOver }"
     >
       <UIcon
-        :name="isExpanded ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
-        class="w-4 h-4 flex-shrink-0 text-gray-600 dark:text-gray-400"
+        :name="isExpanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        class="size-3.5 shrink-0 text-muted"
       />
-      <UIcon name="i-heroicons-folder" class="w-4 h-4 flex-shrink-0 text-yellow-500" />
+      <UIcon
+        :name="isExpanded ? 'i-lucide-folder-open' : 'i-lucide-folder'"
+        class="size-4 shrink-0 text-amber-500"
+      />
 
       <input
         v-if="renaming"
         ref="renameInput"
         v-model="newName"
-        class="flex-1 px-1 bg-white dark:bg-gray-700 border border-blue-400 rounded text-sm"
+        class="flex-1 min-w-0 px-1 bg-default border border-primary/60 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         @blur="finishRename"
         @keyup.enter="finishRename"
         @keyup.escape="cancelRename"
         @click.stop
       />
-      <span v-else class="flex-1 text-sm text-gray-900 dark:text-gray-100">
+      <span v-else class="flex-1 text-sm text-default truncate">
         {{ item.name }}
       </span>
 
-      <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+      <UIcon
+        v-if="isPending"
+        name="i-lucide-loader-2"
+        class="size-3.5 shrink-0 text-muted animate-spin"
+      />
+
+      <div
+        v-else
+        class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 shrink-0"
+      >
         <UButton
-          icon="i-heroicons-plus"
+          icon="i-lucide-file-plus"
           size="xs"
           variant="ghost"
+          color="neutral"
           @click.stop="$emit('create-file', item.id)"
         />
         <UButton
-          icon="i-heroicons-folder-plus"
+          icon="i-lucide-folder-plus"
           size="xs"
           variant="ghost"
+          color="neutral"
           @click.stop="$emit('create-folder', item.id)"
         />
       </div>
@@ -53,23 +70,28 @@
     <!-- File Item -->
     <div
       v-else
-      class="file-item flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-      :style="{ paddingLeft: depth * 16 + 8 + 'px' }"
+      class="file-item flex items-center gap-1.5 pr-2 py-1 rounded-md hover:bg-elevated cursor-pointer transition-all"
+      :style="{ paddingLeft: depth * 14 + 22 + 'px' }"
+      :class="{
+        'bg-primary/10 text-primary': isSelected,
+        'opacity-60 pointer-events-none': isPending
+      }"
+      :draggable="!isPending"
       @click="selectFile"
       @contextmenu="showContextMenu"
-      draggable="true"
       @dragstart="dragStart"
-      :class="{
-        'bg-blue-50 dark:bg-blue-900 text-blue-900 dark:text-blue-100': isSelected
-      }"
     >
-      <UIcon name="i-heroicons-document" class="w-4 h-4 flex-shrink-0 text-gray-400" />
+      <UIcon
+        name="i-lucide-file-code-2"
+        class="size-4 shrink-0"
+        :class="isSelected ? 'text-primary' : 'text-muted'"
+      />
 
       <input
         v-if="renaming"
         ref="renameInput"
         v-model="newName"
-        class="flex-1 px-1 bg-white dark:bg-gray-700 border border-blue-400 rounded text-sm"
+        class="flex-1 min-w-0 px-1 bg-default border border-primary/60 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         @blur="finishRename"
         @keyup.enter="finishRename"
         @keyup.escape="cancelRename"
@@ -78,6 +100,12 @@
       <span v-else class="flex-1 text-sm truncate">
         {{ item.name }}
       </span>
+
+      <UIcon
+        v-if="isPending"
+        name="i-lucide-loader-2"
+        class="size-3.5 shrink-0 text-muted animate-spin"
+      />
     </div>
 
     <!-- Children (Folders recursively, files flat) -->
@@ -87,18 +115,22 @@
         v-for="folder in childFolders"
         :key="folder.id"
         :item="folder"
+        type="folder"
         :depth="depth + 1"
         :selected-file-id="selectedFileId"
         :expanded-folders="expandedFolders"
-        :renaming-id="renamingId"
-        @select-file="$emit('select-file', $event)"
-        @create-file="$emit('create-file', $event)"
-        @create-folder="$emit('create-folder', $event)"
-        @rename="$emit('rename', $event)"
-        @delete="$emit('delete', $event)"
-        @move="$emit('move', $event)"
-        @toggle-folder="$emit('toggle-folder', $event)"
-        @context-menu="$emit('context-menu', $event)"
+        :rename-id="renameId"
+        :all-files="allFiles"
+        :all-folders="allFolders"
+        :pending-items="pendingItems"
+        @select-file="(...args) => $emit('select-file', ...args)"
+        @create-file="(...args) => $emit('create-file', ...args)"
+        @create-folder="(...args) => $emit('create-folder', ...args)"
+        @rename="(...args) => $emit('rename', ...args)"
+        @delete="(...args) => $emit('delete', ...args)"
+        @move="(...args) => $emit('move', ...args)"
+        @toggle-folder="(...args) => $emit('toggle-folder', ...args)"
+        @context-menu="(...args) => $emit('context-menu', ...args)"
       />
 
       <!-- Files in this folder -->
@@ -106,24 +138,30 @@
         v-for="file in childFiles"
         :key="file.id"
         :item="file"
+        type="file"
         :depth="depth + 1"
         :selected-file-id="selectedFileId"
         :expanded-folders="expandedFolders"
-        :renaming-id="renamingId"
-        @select-file="$emit('select-file', $event)"
-        @create-file="$emit('create-file', $event)"
-        @create-folder="$emit('create-folder', $event)"
-        @rename="$emit('rename', $event)"
-        @delete="$emit('delete', $event)"
-        @move="$emit('move', $event)"
-        @toggle-folder="$emit('toggle-folder', $event)"
-        @context-menu="$emit('context-menu', $event)"
+        :rename-id="renameId"
+        :all-files="allFiles"
+        :all-folders="allFolders"
+        :pending-items="pendingItems"
+        @select-file="(...args) => $emit('select-file', ...args)"
+        @create-file="(...args) => $emit('create-file', ...args)"
+        @create-folder="(...args) => $emit('create-folder', ...args)"
+        @rename="(...args) => $emit('rename', ...args)"
+        @delete="(...args) => $emit('delete', ...args)"
+        @move="(...args) => $emit('move', ...args)"
+        @toggle-folder="(...args) => $emit('toggle-folder', ...args)"
+        @context-menu="(...args) => $emit('context-menu', ...args)"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, nextTick } from 'vue'
+
 interface TreeItem {
   id: string
   name: string
@@ -131,14 +169,16 @@ interface TreeItem {
   content?: string
 }
 
-defineProps<{
+const props = defineProps<{
   item: TreeItem
+  type: 'file' | 'folder'
   depth: number
   selectedFileId: string | null
   expandedFolders: Set<string>
   renameId: string | null
   allFiles?: TreeItem[]
   allFolders?: TreeItem[]
+  pendingItems?: Set<string>
 }>()
 
 const emit = defineEmits<{
@@ -157,10 +197,11 @@ const renaming = ref(false)
 const newName = ref('')
 const isDragOver = ref(false)
 
-const isFolder = computed(() => !('content' in props.item))
-const isFile = computed(() => 'content' in props.item)
+const isFolder = computed(() => props.type === 'folder')
+const isFile = computed(() => props.type === 'file')
 const isSelected = computed(() => isFile.value && props.selectedFileId === props.item.id)
 const isExpanded = computed(() => isFolder.value && props.expandedFolders.has(props.item.id))
+const isPending = computed(() => props.pendingItems?.has(props.item.id) ?? false)
 
 const childFolders = computed(() => {
   if (!isFolder.value || !props.allFolders) return []
@@ -172,7 +213,7 @@ const childFiles = computed(() => {
   return props.allFiles.filter(f => f.parentFolderId === props.item.id)
 })
 
-watch(() => props.renamingId, (newId) => {
+watch(() => props.renameId, (newId) => {
   if (newId === props.item.id && isFolder.value) {
     renaming.value = true
     newName.value = props.item.name
@@ -223,7 +264,7 @@ const dragStart = (e: DragEvent) => {
 }
 
 const dragOver = (e: DragEvent) => {
-  if (isFolder.value) {
+  if (isFolder.value && !isPending.value) {
     e.preventDefault()
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move'
@@ -238,6 +279,7 @@ const dragLeave = () => {
 
 const drop = (e: DragEvent) => {
   e.preventDefault()
+  e.stopPropagation()
   isDragOver.value = false
 
   if (isFolder.value && e.dataTransfer) {

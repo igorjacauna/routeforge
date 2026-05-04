@@ -1,3 +1,7 @@
+import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseUser } from '~~/server/utils/auth'
+import { getPublicUserId } from '~~/server/utils/publicUser'
+
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   const folderId = event.context.params?.id
@@ -12,7 +16,6 @@ export default defineEventHandler(async (event) => {
   try {
     const client = await serverSupabaseClient(event)
 
-    // Get folder to verify ownership
     const { data: folder, error: getError } = await client
       .from('folders')
       .select('workspace_id')
@@ -27,12 +30,20 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verify workspace ownership
+    const publicUserId = await getPublicUserId(client, user.id)
+
+    if (!publicUserId) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Access denied'
+      })
+    }
+
     const { data: workspace, error: workspaceError } = await client
       .from('workspaces')
       .select('id')
       .eq('id', folder.workspace_id)
-      .eq('owner_id', user.id)
+      .eq('owner_id', publicUserId)
       .single()
 
     if (workspaceError || !workspace) {
@@ -42,7 +53,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Delete folder (cascade will handle files inside)
     const { error: deleteError } = await client
       .from('folders')
       .delete()

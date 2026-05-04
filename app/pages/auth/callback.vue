@@ -8,7 +8,6 @@ useSeoMeta({
   title: 'Autenticando...'
 })
 
-const { getFirstWorkspace } = useAuth()
 const router = useRouter()
 
 const loading = ref(true)
@@ -17,25 +16,21 @@ const statusMessage = ref('Processando autenticação...')
 
 onMounted(async () => {
   try {
-    // Aguarda Supabase processar o callback do OAuth
     await new Promise(resolve => setTimeout(resolve, 800))
 
     statusMessage.value = 'Carregando seu workspace...'
 
-    // Busca primeira workspace do usuário
-    const workspace = await getFirstWorkspace()
+    const { workspace } = await $fetch('/api/workspaces/ensure', { method: 'POST' })
 
     if (!workspace) {
-      throw new Error('Nenhum workspace encontrado. Por favor contate o suporte.')
+      throw new Error('Não foi possível criar o workspace.')
     }
 
-    // Redireciona para workspace
     await router.replace(`/workspace/${workspace.id}`)
-
   } catch (err: any) {
     console.error('Callback error:', err)
     loading.value = false
-    error.value = err.message || 'Erro ao processar autenticação'
+    error.value = err.data?.statusMessage || err.message || 'Erro ao processar autenticação'
     statusMessage.value = 'Erro na autenticação'
   }
 })
@@ -52,7 +47,7 @@ onMounted(async () => {
         {{ statusMessage }}
       </h1>
 
-      <p v-if="!loading && !error" class="text-gray-600 dark:text-gray-400">
+      <p v-if="loading" class="text-gray-600 dark:text-gray-400">
         Você será redirecionado em breve...
       </p>
 

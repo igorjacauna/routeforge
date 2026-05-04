@@ -1,44 +1,62 @@
 <template>
-  <aside class="w-64 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-800 h-full">
+  <div
+    class="flex flex-col h-full w-full min-h-0"
+    @dragover.prevent="rootDragOver = true"
+    @dragleave="rootDragOver = false"
+    @drop.prevent="handleRootDrop"
+    :class="{ 'bg-primary/5': rootDragOver }"
+  >
     <!-- Header -->
-    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-      <h2 class="font-semibold text-gray-900 dark:text-white mb-3">Files</h2>
-      <div class="flex gap-2">
-        <UButton
-          icon="i-heroicons-document-plus"
-          size="sm"
-          @click="createFileInRoot"
-          title="New File"
-        />
-        <UButton
-          icon="i-heroicons-folder-plus"
-          size="sm"
-          @click="createFolderInRoot"
-          title="New Folder"
-        />
+    <div class="flex items-center justify-between gap-2 h-12 px-4 border-b border-default shrink-0">
+      <span class="text-xs font-semibold uppercase tracking-wider text-muted">
+        Files
+      </span>
+      <div class="flex items-center gap-1">
+        <UTooltip text="New file">
+          <UButton
+            icon="i-lucide-file-plus"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            @click="createFileInRoot"
+          />
+        </UTooltip>
+        <UTooltip text="New folder">
+          <UButton
+            icon="i-lucide-folder-plus"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            @click="createFolderInRoot"
+          />
+        </UTooltip>
       </div>
     </div>
 
     <!-- Tree View -->
-    <div v-if="isLoading" class="p-4 text-sm text-gray-500">
-      Loading...
+    <div v-if="isLoading" class="p-3 space-y-2">
+      <div v-for="i in 5" :key="i" class="flex items-center gap-2">
+        <USkeleton class="h-4 w-4 rounded" />
+        <USkeleton class="h-4 rounded" :style="`width: ${60 + (i * 13) % 40}%`" />
+      </div>
     </div>
 
-    <div v-else class="flex-1 overflow-y-auto">
+    <div v-else class="flex-1 overflow-y-auto min-h-0">
       <!-- Root files and folders -->
       <div class="p-2">
-        <!-- Root folders -->
         <FileTreeNode
           v-for="folder in rootFolders"
           :key="folder.id"
           :item="folder"
+          type="folder"
           :depth="0"
           :selected-file-id="selectedFileId"
           :expanded-folders="expandedFolders"
           :rename-id="renamingId"
           :all-files="files"
           :all-folders="folders"
-          @select-file="$emit('select-file', $event)"
+          :pending-items="pendingItems"
+          @select-file="(id) => $emit('select-file', id)"
           @create-file="onCreateFile"
           @create-folder="onCreateFolder"
           @rename="onRename"
@@ -48,18 +66,19 @@
           @context-menu="handleContextMenu"
         />
 
-        <!-- Root files -->
         <FileTreeNode
           v-for="file in rootFiles"
           :key="file.id"
           :item="file"
+          type="file"
           :depth="0"
           :selected-file-id="selectedFileId"
           :expanded-folders="expandedFolders"
           :rename-id="renamingId"
           :all-files="files"
           :all-folders="folders"
-          @select-file="$emit('select-file', $event)"
+          :pending-items="pendingItems"
+          @select-file="(id) => $emit('select-file', id)"
           @create-file="onCreateFile"
           @create-folder="onCreateFolder"
           @rename="onRename"
@@ -72,10 +91,11 @@
         <!-- Empty state -->
         <div
           v-if="files.length === 0 && folders.length === 0"
-          class="p-4 text-center text-sm text-gray-500"
+          class="px-4 py-8 text-center"
         >
-          <p>No files yet</p>
-          <p class="text-xs mt-1">Click + above to create</p>
+          <UIcon name="i-lucide-folder-open" class="size-8 text-muted/60 mx-auto mb-2" />
+          <p class="text-sm font-medium text-default">No files yet</p>
+          <p class="text-xs text-muted mt-1">Use the buttons above to create one.</p>
         </div>
       </div>
     </div>
@@ -89,10 +109,66 @@
       @select="handleContextMenuSelect"
       @close="hideContextMenu"
     />
-  </aside>
+
+    <!-- Create File/Folder Modal -->
+    <UModal
+      v-model:open="createModal.isOpen"
+      :title="createModal.type === 'file' ? 'Create File' : 'Create Folder'"
+    >
+      <template #body>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            {{ createModal.type === 'file' ? 'File name' : 'Folder name' }}
+          </label>
+          <UInput
+            v-model="createModal.name"
+            :placeholder="createModal.type === 'file' ? 'my-file.txt' : 'my-folder'"
+            @keyup.enter="confirmCreate"
+            @keyup.escape="cancelCreate"
+          />
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex gap-2 justify-end">
+          <UButton color="neutral" variant="outline" @click="cancelCreate">
+            Cancel
+          </UButton>
+          <UButton @click="confirmCreate">
+            Create
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete Confirmation Modal -->
+    <UModal
+      v-model:open="deleteModal.isOpen"
+      :title="`Delete ${deleteModal.type}?`"
+    >
+      <template #body>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Are you sure you want to delete this {{ deleteModal.type }}? This action cannot be undone.
+        </p>
+      </template>
+
+      <template #footer>
+        <div class="flex gap-2 justify-end">
+          <UButton color="neutral" variant="outline" @click="cancelDelete">
+            Cancel
+          </UButton>
+          <UButton color="error" @click="confirmDelete">
+            Delete
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue'
+
 interface FileItem {
   id: string
   name: string
@@ -107,11 +183,12 @@ interface ContextMenuItem {
   dangerous?: boolean
 }
 
-defineProps<{
+const { files, folders, selectedFileId, isLoading, pendingItems } = defineProps<{
   files: FileItem[]
   folders: FileItem[]
   selectedFileId: string | null
   isLoading: boolean
+  pendingItems?: Set<string>
 }>()
 
 const emit = defineEmits<{
@@ -125,6 +202,17 @@ const emit = defineEmits<{
 
 const expandedFolders = ref<Set<string>>(new Set())
 const renamingId = ref<string | null>(null)
+const rootDragOver = ref(false)
+
+const handleRootDrop = (e: DragEvent) => {
+  rootDragOver.value = false
+  if (!e.dataTransfer) return
+  const itemId = e.dataTransfer.getData('itemId')
+  const itemType = e.dataTransfer.getData('itemType') as 'file' | 'folder'
+  if (itemId && itemType) {
+    emit('move', itemId, null, itemType)
+  }
+}
 
 const contextMenu = ref({
   visible: false,
@@ -134,28 +222,41 @@ const contextMenu = ref({
   targetType: 'file' as 'file' | 'folder'
 })
 
+const createModal = ref({
+  isOpen: false,
+  name: '',
+  type: 'file' as 'file' | 'folder',
+  parentFolderId: null as string | null
+})
+
+const deleteModal = ref({
+  isOpen: false,
+  type: 'file' as 'file' | 'folder',
+  targetId: ''
+})
+
 const contextMenuItems = computed<ContextMenuItem[]>(() => {
   if (contextMenu.value.targetType === 'file') {
     return [
-      { id: 'rename', label: 'Rename', icon: 'i-heroicons-pencil' },
-      { id: 'delete', label: 'Delete', icon: 'i-heroicons-trash', dangerous: true }
+      { id: 'rename', label: 'Rename', icon: 'i-lucide-pencil' },
+      { id: 'delete', label: 'Delete', icon: 'i-lucide-trash-2', dangerous: true }
     ]
   } else {
     return [
-      { id: 'new-file', label: 'New File', icon: 'i-heroicons-document-plus' },
-      { id: 'new-folder', label: 'New Folder', icon: 'i-heroicons-folder-plus' },
-      { id: 'rename', label: 'Rename', icon: 'i-heroicons-pencil' },
-      { id: 'delete', label: 'Delete', icon: 'i-heroicons-trash', dangerous: true }
+      { id: 'new-file', label: 'New File', icon: 'i-lucide-file-plus' },
+      { id: 'new-folder', label: 'New Folder', icon: 'i-lucide-folder-plus' },
+      { id: 'rename', label: 'Rename', icon: 'i-lucide-pencil' },
+      { id: 'delete', label: 'Delete', icon: 'i-lucide-trash-2', dangerous: true }
     ]
   }
 })
 
 const rootFolders = computed(() =>
-  props.folders.filter(f => !f.parentFolderId)
+  folders.filter(f => !f.parentFolderId)
 )
 
 const rootFiles = computed(() =>
-  props.files.filter(f => !f.parentFolderId)
+  files.filter(f => !f.parentFolderId)
 )
 
 const toggleFolder = (folderId: string) => {
@@ -166,31 +267,60 @@ const toggleFolder = (folderId: string) => {
   }
 }
 
-const createFileInRoot = async () => {
-  const name = prompt('File name:')
-  if (name) {
-    emit('create-file', null, name)
+const createFileInRoot = () => {
+  createModal.value = {
+    isOpen: true,
+    name: '',
+    type: 'file',
+    parentFolderId: null
   }
 }
 
-const createFolderInRoot = async () => {
-  const name = prompt('Folder name:')
-  if (name) {
-    emit('create-folder', null, name)
+const createFolderInRoot = () => {
+  createModal.value = {
+    isOpen: true,
+    name: '',
+    type: 'folder',
+    parentFolderId: null
   }
 }
 
 const onCreateFile = (parentFolderId: string) => {
-  const name = prompt('File name:')
-  if (name) {
-    emit('create-file', parentFolderId, name)
+  createModal.value = {
+    isOpen: true,
+    name: '',
+    type: 'file',
+    parentFolderId
   }
 }
 
 const onCreateFolder = (parentFolderId: string) => {
-  const name = prompt('Folder name:')
-  if (name) {
-    emit('create-folder', parentFolderId, name)
+  createModal.value = {
+    isOpen: true,
+    name: '',
+    type: 'folder',
+    parentFolderId
+  }
+}
+
+const confirmCreate = () => {
+  const { name, type, parentFolderId } = createModal.value
+  if (name.trim()) {
+    if (type === 'file') {
+      emit('create-file', parentFolderId, name)
+    } else {
+      emit('create-folder', parentFolderId, name)
+    }
+    cancelCreate()
+  }
+}
+
+const cancelCreate = () => {
+  createModal.value = {
+    isOpen: false,
+    name: '',
+    type: 'file',
+    parentFolderId: null
   }
 }
 
@@ -199,10 +329,25 @@ const onRename = (id: string, newName: string, type: 'file' | 'folder') => {
   renamingId.value = null
 }
 
-const onDelete = async (id: string, type: 'file' | 'folder') => {
-  const confirmed = confirm(`Delete this ${type}?`)
-  if (confirmed) {
-    emit('delete', id, type)
+const onDelete = (id: string, type: 'file' | 'folder') => {
+  deleteModal.value = {
+    isOpen: true,
+    type,
+    targetId: id
+  }
+}
+
+const confirmDelete = () => {
+  const { targetId, type } = deleteModal.value
+  emit('delete', targetId, type)
+  cancelDelete()
+}
+
+const cancelDelete = () => {
+  deleteModal.value = {
+    isOpen: false,
+    type: 'file',
+    targetId: ''
   }
 }
 
