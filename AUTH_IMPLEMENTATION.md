@@ -1,220 +1,133 @@
-# Auth Callback Implementation - MVP
+# Auth Implementation — Magic Link (OTP)
 
-## ✅ Implementado
+## Implementado
 
-### 1. **Composable `useAuth.ts` (Refatorado)**
-- ✅ Adicionado `checkAuthStatus()` - Verifica se usuário está autenticado
-- ✅ Adicionado `getFirstWorkspace()` - Busca primeira workspace do usuário
-- ✅ Adicionado `getUserWorkspaces()` - Lista todos os workspaces
-- ✅ Adicionado `getProfile()` - Busca profile completo do usuário
-- ✅ Métodos de `login()` e `logout()` mantidos
-- ✅ `user` exportado como `readonly()` para reatividade segura
+### 1. Composable `useAuth.ts`
+
+- `login(email)` — envia magic link via `signInWithOtp`
+- `logout()` — encerra sessão e redireciona para `/`
+- `checkAuthStatus()` — verifica se há sessão ativa
+- `getFirstWorkspace()` — busca primeira workspace do usuário
+- `getUserWorkspaces()` — lista todos os workspaces
+- `getProfile()` — busca perfil completo
+- `getPublicUserId()` — resolve `public.users.id` a partir do `auth.users.id`
+- `user` exportado como `readonly()` para reatividade segura
 
 **Localização:** `app/composables/useAuth.ts`
 
-### 2. **Página de Callback `/auth/callback.vue` (Completa)**
-- ✅ Loading state com ícone animado
-- ✅ Verificação automática de autenticação ao montar
-- ✅ Busca primeira workspace
-- ✅ Redirecionamento automático para `/workspace/[id]`
-- ✅ Tratamento robusto de erros
-- ✅ Middleware `guest` para proteger rota
-- ✅ Layout `auth` para estilo customizado
-- ✅ Status messages dinâmicas para feedback visual
+### 2. Página de Login `/`
 
-**Localização:** `app/pages/auth/callback.vue`
-
-### 3. **Proteção de Rotas** 🛡️
-- ✅ Verificação de autenticação na página de callback
-- ✅ Redireciona usuários autenticados para `/workspace`
-- ✅ Implementado diretamente no `onMounted` da página
-- ✅ Evita problemas de auto-import do Nuxt 4
-
-### 4. **Endpoint de Profile `/api/auth/profile.get.ts` (Novo)**
-- ✅ Retorna user profile completo
-- ✅ Retorna primeira workspace (ou null)
-- ✅ Retorna lista de todas as workspaces
-- ✅ Validação de autenticação via middleware
-- ✅ Tratamento de erros Postgres (PGRST116)
-
-**Localização:** `app/server/api/auth/profile.get.ts`
-
-**Response:**
-```json
-{
-  "user": { ... },
-  "workspace": { "id", "name", "description" },
-  "workspaces": [...]
-}
-```
-
-### 5. **Endpoint de Primeira Workspace `/api/workspaces/first.get.ts` (Novo)**
-- ✅ Busca primeira workspace do usuário
-- ✅ Usado internamente pelo callback
-- ✅ Retorna null se nenhuma workspace existe
-- ✅ Tratamento de erros PostgreSQL
-
-**Localização:** `app/server/api/workspaces/first.get.ts`
-
-**Response:**
-```json
-{
-  "workspace": { "id", "name", "description" } || null
-}
-```
-
-### 6. **Layout `/auth` (Melhorado)**
-- ✅ Gradiente animado (azul → roxo → slate)
-- ✅ Animated blobs de background
-- ✅ Header com logo RouteForge
-- ✅ Responsivo e dark-mode compatible
-- ✅ Estilo clean e moderno
-
-**Localização:** `app/layouts/auth.vue`
-
-### 7. **Página Index `/` (Atualizada)**
-- ✅ Middleware `guest` adicionado
-- ✅ Loading state no botão de login (já existia)
-- ✅ Design clean e acessível
-- ✅ Features listing
+- Input de email com validação client-side
+- Botão "Send magic link"
+- Tela de confirmação "Check your email" após envio
+- Opção de voltar e trocar o email
+- Tratamento de erros inline
+- Middleware `auth` + layout `auth`
 
 **Localização:** `app/pages/index.vue`
 
----
+### 3. Página de Callback `/auth/callback`
 
-## 🔄 Fluxo de Autenticação Completo
+- Polling por `useSupabaseUser()` até sessão ser estabelecida
+- Redirecionamento automático para `/workspace` ou rota `next`
+- Loading state com ícone animado
+- Tratamento de erros com alerta e botão de voltar
+- Middleware `auth` + layout `auth`
 
-```
-1. Usuário em localhost:3000
-   ↓
-2. Clica "Sign in with Google"
-   ↓
-3. useAuth.login() dispara OAuth
-   ↓
-4. Google OAuth consent screen
-   ↓
-5. Usuário autoriza
-   ↓
-6. Google redireciona para /auth/callback?code=XXX
-   ↓
-7. @nuxtjs/supabase intercepta automaticamente:
-   - Extrai code do URL
-   - Faz exchange code → JWT
-   - Armazena token em cookie HTTP-only
-   ↓
-8. Página /auth/callback.vue monta
-   ↓
-9. checkAuthStatus() verifica presença de session
-   ↓
-10. getFirstWorkspace() busca workspace criada pelo trigger
-    (Trigger SQL cria automaticamente na 1ª autenticação)
-    ↓
-11. Redireciona para /workspace/[id]
-    ↓
-12. Dashboard/editor carrega
-```
+**Localização:** `app/pages/auth/callback.vue`
+
+### 4. Proteção de Rotas
+
+- `app/middleware/auth.ts` — redireciona usuários autenticados para `/workspace` e não-autenticados para `/`
+- `server/middleware/auth.ts` — retorna 401 para requisições não autenticadas em `/api/*`
+
+### 5. Endpoints de API
+
+- `/api/auth/profile.get.ts` — perfil + workspaces do usuário
+- `/api/workspaces/first.get.ts` — primeira workspace
+- `/api/workspaces/index.get.ts` — lista todos os workspaces
+- `/api/workspaces/ensure.post.ts` — garante que usuário tem workspace
+
+### 6. Database Trigger
+
+- `handle_new_user()` — cria automaticamente registro em `public.users` + workspace "My Workspace" no primeiro login
+- Fallback: quando `full_name` não existe (usuário OTP), usa prefixo do email como `display_name`
+
+**Localização:** `supabase/migrations/007_otp_auth_fallback.sql`
 
 ---
 
-## 🔒 Segurança Implementada
+## Fluxo de Autenticação
 
-- ✅ JWT via cookies HTTP-only (não acessível via JavaScript)
-- ✅ Middleware de autenticação em todas as rotas `/api`
-- ✅ Service role key apenas no servidor (environment variable)
-- ✅ Anon key apenas no cliente (public)
-- ✅ Middleware `guest` protege rotas de autenticação
-- ✅ Validação de user ID antes de queries
-- ✅ Tratamento de erros sem expor detalhes internos
+```
+1. Usuário acessa /
+   ↓
+2. Digita email e clica "Send magic link"
+   ↓
+3. useAuth.login(email) chama signInWithOtp
+   ↓
+4. Supabase envia email com magic link (via Resend SMTP)
+   ↓
+5. Usuário clica no link do email
+   ↓
+6. @nuxtjs/supabase intercepta automaticamente:
+   - Extrai access_token do hash da URL
+   - Seta a sessão (JWT em cookie HTTP-only)
+   - Redireciona para /auth/callback
+   ↓
+7. /auth/callback monta, aguarda sessão, redireciona para /workspace
+   ↓
+8. SQL Trigger (primeira vez): cria users + workspace
+```
 
 ---
 
-## 📊 Estrutura de Banco de Dados
+## Segurança
 
-### Tabelas Envolvidas:
-
-**users** (criada automaticamente pelo trigger)
-```sql
-- id (UUID, PK)
-- auth_id (UUID, FK → auth.users)
-- email (VARCHAR)
-- full_name (VARCHAR)
-- display_name (VARCHAR)
-- avatar_url (VARCHAR)
-- theme (ENUM: light/dark)
-- created_at, updated_at
-```
-
-**workspaces** (criada automaticamente pelo trigger)
-```sql
-- id (UUID, PK)
-- owner_id (UUID, FK → users.id)
-- name (VARCHAR, default "My Workspace")
-- description (TEXT)
-- default_sharing (VARCHAR)
-- max_storage_mb (INT)
-- created_at, updated_at
-```
-
-**Trigger: handle_new_user()**
-- Executa ao criar novo auth.users
-- Cria registro em `users` table
-- Cria primeira `workspace` "My Workspace"
+- JWT em cookies HTTP-only (não acessível via JavaScript)
+- Middleware de autenticação em todas as rotas `/api`
+- Service role key apenas no servidor
+- Anon key apenas no cliente
+- Middleware protege rotas de auth e workspace
+- Validação de user ID antes de queries
 
 ---
 
-## 🚀 Variáveis de Ambiente Necessárias
+## Variáveis de Ambiente
 
 ```env
 # Supabase
 NUXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NUXT_PUBLIC_SUPABASE_KEY=your-anon-key
 NUXT_SUPABASE_SECRET_KEY=your-service-role-key
-
-# Google OAuth
-NUXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-google-secret
 ```
 
 **Configurar em:**
 1. `.env.local` (desenvolvimento)
-2. Firebase App Hosting environment variables (produção)
-3. Supabase > Project Settings > Auth > OAuth Providers
+2. Supabase Dashboard > Project Settings > API
 
 ---
 
-## 📱 Testando o Fluxo
+## Configuração no Supabase
 
-### Teste Incógnito (Cookie Fresh)
-1. Abra aba incógnita/privada
-2. Acesse `localhost:3000`
-3. Clique "Sign in with Google"
-4. Autorize no Google
-5. Veja `/auth/callback` carregando
-6. Redireciona para `/workspace/[id]`
+### 1. Email Provider (Magic Link)
 
-### Teste Depois de Login
-1. Já logado em `localhost:3000`
-2. Acesse `localhost:3000/` ou `/auth/callback`
-3. Middleware `guest` redireciona para `/workspace`
+**Supabase Dashboard > Authentication > Providers > Email**
+- Enable email provider: ✅
+- Configure SMTP (recomendado usar Resend):
+  - SMTP Host: `smtp.resend.com`
+  - Port: `465`
+  - Username: `resend`
+  - Password: sua API key do Resend
 
-### Teste de Erro (OAuth Cancelado)
-1. Clique "Sign in with Google"
-2. Cancele na tela do Google
-3. Redireciona para `/auth/callback`
-4. Mostra erro "Autenticação falhou"
-5. Botão "Voltar para Login" funciona
+### 2. Redirect URLs
 
----
+**Supabase Dashboard > Authentication > URL Configuration**
+- Site URL: `http://localhost:3000` (dev) ou `https://seu-dominio.com` (prod)
+- Redirect URLs: `http://localhost:3000/auth/callback`, `https://seu-dominio.com/auth/callback`
 
-## 🔧 Configuração no Supabase
+### 3. RLS Policies (Recomendado)
 
-### 1. Google OAuth
-**Supabase Dashboard > Authentication > Providers > Google**
-- Client ID: (do Google Cloud Console)
-- Client Secret: (do Google Cloud Console)
-- Redirect URL: `https://your-app.com/auth/callback`
-
-### 2. RLS Policies (Recomendado)
 ```sql
 -- Enable RLS
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -222,141 +135,65 @@ ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY;
 
 -- Users can view own profile
 CREATE POLICY "Users can view own profile" ON users
-  FOR SELECT USING (auth.uid() = id);
+  FOR SELECT USING (auth.uid() = auth_id);
 
 -- Users can view own workspaces
 CREATE POLICY "Users can view own workspaces" ON workspaces
-  FOR SELECT USING (auth.uid() = owner_id);
+  FOR SELECT USING (auth.uid() = (SELECT auth_id FROM users WHERE id = owner_id));
 
--- Auto-creation policy (for trigger)
+-- System can create users (for trigger)
 CREATE POLICY "System can create users" ON users
   FOR INSERT WITH CHECK (true);
 ```
 
-### 3. Verificar Trigger
-**Supabase > SQL Editor**
-```sql
--- Verificar se trigger existe
-SELECT * FROM pg_trigger WHERE tgname = 'on_auth_user_created';
+---
 
--- Se não existir, criar:
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.users (id, auth_id, email, full_name, display_name)
-  VALUES (
-    gen_random_uuid(),
-    NEW.id,
-    NEW.email,
-    NEW.raw_user_meta_data ->> 'full_name',
-    NEW.raw_user_meta_data ->> 'name'
-  );
-  
-  INSERT INTO public.workspaces (owner_id, name)
-  VALUES (
-    (SELECT id FROM users WHERE auth_id = NEW.id),
-    'My Workspace'
-  );
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+## Testes
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-```
+### Primeiro acesso (sem sessão)
+1. Abrir aba anônima
+2. Acessar `localhost:3000`
+3. Digitar email e clicar "Send magic link"
+4. Ver tela "Check your email"
+5. Clicar no link do email
+6. Ser redirecionado para `/workspace`
+
+### Já logado
+1. Acessar `/`
+2. Middleware redireciona para `/workspace`
+
+### Email inválido
+1. Digitar email sem `@`
+2. Ver mensagem de erro "Enter a valid email address"
+
+### Link expirado ou inválido
+1. Callback mostra erro com alerta e botão "Voltar para Login"
 
 ---
 
-## 📋 Checklist de Verificação
-
-### Desenvolvimento
-- [ ] `.env.local` configurado com Supabase credentials
-- [ ] Google OAuth credentials adicionados a `.env.local`
-- [ ] `pnpm install` executado
-- [ ] `pnpm dev` rodando em localhost:3000
-- [ ] Acessar localhost:3000 carrega página de login
-- [ ] Botão "Sign in with Google" funciona
-- [ ] Callback processa e redireciona para workspace
-- [ ] Middleware `guest` redireciona logados para /workspace
-
-### Produção
-- [ ] Environment variables configuradas no Firebase App Hosting
-- [ ] Google OAuth redirect URI atualizada em Google Cloud Console
-- [ ] Supabase Auth > Providers > Google configurado
-- [ ] Trigger SQL `handle_new_user()` existe no banco
-- [ ] RLS policies ativas nas tabelas
-- [ ] Testar flow completo em produção
-- [ ] Verificar logs de erro em Supabase
-
----
-
-## 🎯 Próximos Passos (Fora do MVP)
-
-1. **Rate Limiting**
-   - Implementar rate limit no OAuth callback
-   - Proteger contra brute force attempts
-
-2. **Session Management**
-   - Refresh token logic
-   - Session timeout com re-auth automático
-   - Multi-device session tracking
-
-3. **User Profile**
-   - Página de settings do usuário
-   - Editar display name e avatar
-   - Two-factor authentication (opcional)
-
-4. **Team Collaboration**
-   - Team member invitations
-   - Role-based access control (RBAC)
-   - Workspace sharing via private links
-
-5. **Monitoring**
-   - Error tracking com Sentry
-   - Analytics de signups/logins
-   - Performance monitoring
-
----
-
-## 📚 Referências
-
-- [Nuxt 4 Docs](https://nuxt.com)
-- [@nuxtjs/supabase](https://github.com/nuxtlabs/nuxtjs-supabase)
-- [Supabase Auth Docs](https://supabase.com/docs/guides/auth)
-- [Nuxt UI Docs](https://ui.nuxt.com)
-- [RouteForge Spec](./spec.md)
-- [RouteForge TechSpec](./techspec.md)
-
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "Blank page at /auth/callback"
-- Verificar se @nuxtjs/supabase está instalado
-- Verificar nuxt.config.ts tem `callback: '/auth/callback'`
-- Verificar console.log para erros de session
+- Verificar se `@nuxtjs/supabase` está instalado
+- Verificar `nuxt.config.ts` tem `callback: '/auth/callback'`
+- Verificar console para erros de sessão
 
 ### "Redireciona para / em vez de /workspace"
 - Workspace não foi criada pelo trigger
-- Verificar se trigger `handle_new_user()` existe
-- Verificar logs do Supabase para erros
+- Verificar se trigger `handle_new_user()` existe no banco
+- Verificar logs do Supabase
 
 ### "Erro 401 Unauthorized em /api/*"
 - JWT token não está sendo passado
 - Cookies HTTP-only não estão sendo enviados
-- Verificar useSsrCookies: true no nuxt.config.ts
+- Verificar `useSsrCookies: true` no `nuxt.config.ts`
 
-### "Google OAuth authorization fails"
-- Verificar Google Cloud Console > OAuth 2.0 Client ID
-- Redirect URI no Google Cloud deve ser exato: `https://your-app.com/auth/callback`
-- Verificar se credenciais estão em .env.local
+### Magic link não chega no email
+- Verificar configuração SMTP no Supabase
+- Verificar se o email não foi para spam
+- Verificar logs do Supabase Auth
 
 ---
 
-**Status:** ✅ MVP Implementado e Pronto para Teste
-
-**Data:** 2025-05-01
-**Implementado por:** Claude Code
-**Versão:** Nuxt 4.4.2 + @supabase/nuxtjs 2.0.6
+**Status:** Implementado
+**Versão:** Nuxt 4.4.2 + @nuxtjs/supabase 2.0.6

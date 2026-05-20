@@ -3,14 +3,16 @@ export const useAuth = () => {
   const user = useSupabaseUser()
   const router = useRouter()
 
-  const login = async () => {
-    const { error } = await client.auth.signInWithOAuth({
-      provider: 'google',
+  const login = async (email: string, next?: string) => {
+    const callbackUrl = new URL(`${window.location.origin}/auth/callback`)
+    if (next) callbackUrl.searchParams.set('next', next)
+    const { error } = await client.auth.signInWithOtp({
+      email,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        emailRedirectTo: callbackUrl.toString()
       }
     })
-    if (error) console.error('Login error:', error)
+    return { error }
   }
 
   const logout = async () => {

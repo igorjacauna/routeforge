@@ -198,6 +198,7 @@ const emit = defineEmits<{
   'rename': [id: string, newName: string, type: 'file' | 'folder']
   'delete': [id: string, type: 'file' | 'folder']
   'move': [id: string, newParentId: string | null, type: 'file' | 'folder']
+  'share-folder': [folderId: string, folderName: string]
 }>()
 
 const expandedFolders = ref<Set<string>>(new Set())
@@ -246,6 +247,7 @@ const contextMenuItems = computed<ContextMenuItem[]>(() => {
       { id: 'new-file', label: 'New File', icon: 'i-lucide-file-plus' },
       { id: 'new-folder', label: 'New Folder', icon: 'i-lucide-folder-plus' },
       { id: 'rename', label: 'Rename', icon: 'i-lucide-pencil' },
+      { id: 'share', label: 'Compartilhar pasta', icon: 'i-lucide-users' },
       { id: 'delete', label: 'Delete', icon: 'i-lucide-trash-2', dangerous: true }
     ]
   }
@@ -390,6 +392,11 @@ const handleContextMenuSelect = (item: ContextMenuItem) => {
     case 'new-folder':
       onCreateFolder(targetId)
       break
+    case 'share': {
+      const folder = folders.find(f => f.id === targetId)
+      if (folder) emit('share-folder', folder.id, folder.name)
+      break
+    }
   }
 }
 </script>

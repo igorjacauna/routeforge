@@ -1,333 +1,157 @@
 # RouteForge - Implementation Summary
 
-## 🎯 Status: MVP Authentication & Architecture Complete
+## Status: MVP Core Complete
 
-**Date:** 2025-05-01  
-**Branch:** `development`  
-**Commits:** 4 commits with complete refactor
+**Branch:** `development`
 
 ---
 
-## ✅ What's Implemented
+## What's Implemented
 
-### 1. **Authentication System** 🔐
-- ✅ Google OAuth via @nuxtjs/supabase
-- ✅ Automatic user creation (SQL trigger)
-- ✅ Automatic workspace creation
-- ✅ JWT stored in HTTP-only cookies
-- ✅ Session management via Supabase Auth
+### 1. Authentication System
+- Email magic link (OTP) via Supabase Auth + Resend SMTP
+- Automatic user creation (SQL trigger)
+- Automatic workspace creation on first login
+- JWT stored in HTTP-only cookies
+- Session management via Supabase Auth
 
-### 2. **Route Middleware** 🛡️
-```typescript
-// app/middleware/auth.client.ts
-- Redirects authenticated users away from login pages
-- Redirects unauthenticated users away from workspace
-- Uses reactive useSupabaseUser() checking
-- Clean, reusable, Nuxt 4 best practice
-```
+### 2. Route Middleware
+- `app/middleware/auth.ts` — redirects authenticated users away from login, unauthenticated away from workspace
+- `server/middleware/auth.ts` — guards `/api/*` routes with 401 on missing session
 
-### 3. **Pages with Auth Protection**
-- ✅ `/` (login) - middleware: 'auth'
-- ✅ `/auth/callback` (OAuth callback) - middleware: 'auth'
-- ✅ `/workspace/[id]` (editor) - middleware: 'auth'
+### 3. Pages with Auth Protection
+- `/` (login) — email input + magic link
+- `/auth/callback` (magic link callback) — session polling + redirect
+- `/workspace/[id]` (editor) — full workspace editor
+- `/workspace/index` (workspace list)
+- `/invite/[token]` (invitation acceptance)
 
-### 4. **Composables** 📦
-```typescript
-useAuth():
-  - checkAuthStatus()
-  - getFirstWorkspace()
-  - getUserWorkspaces()
-  - getProfile()
-  - login()
-  - logout()
-  - user (readonly)
-```
+### 4. Composables
+- `useAuth()` — login, logout, checkAuthStatus, getFirstWorkspace, getUserWorkspaces, getProfile
+- `useFiles()` — file/folder CRUD operations
+- `useCollaboration()` — real-time Yjs sync via Hocuspocus
+- `useSaveState()` — debounced auto-save with status indicator
+- `useWorkspaceUI()` — workspace-level UI state
 
-### 5. **API Endpoints** 🔌
-- ✅ `/api/auth/profile.get.ts` - User profile + workspaces
-- ✅ `/api/workspaces/first.get.ts` - First workspace lookup
-- ✅ Server-side auth middleware (`/server/middleware/auth.ts`)
+### 5. Components
+- `FileExplorer.vue` — hierarchical file tree with context menu
+- `FileTreeNode.vue` — recursive tree node with drag-and-drop
+- `ContextMenu.vue` — right-click actions
+- `RouteEditor.vue` — CodeMirror 6 editor with route syntax highlighting
+- `BreadcrumbNav.vue` — path navigation
+- `ShareModal.vue` — sharing configuration
+- `PromptModal.vue` — confirmation/input prompts
 
-### 6. **Layouts** 🎨
-- ✅ `layouts/auth.vue` - For login/callback (gradient background, animated blobs)
-- ✅ `layouts/default.vue` - For workspace (header with navigation)
+### 6. API Endpoints
 
-### 7. **Clean App Structure** 🏗️
+**Auth:**
+- `GET /api/auth/profile` — user profile + workspaces
+
+**Workspaces:**
+- `GET /api/workspaces` — list user workspaces
+- `POST /api/workspaces` — create workspace
+- `GET /api/workspaces/[id]` — get workspace with file tree
+- `PATCH /api/workspaces/[id]` — update workspace
+- `GET /api/workspaces/first` — first workspace lookup
+- `POST /api/workspaces/ensure` — ensure user has workspace
+- `POST /api/workspaces/[id]/invite` — invite member
+- `GET /api/workspaces/[id]/members` — list members
+- `DELETE /api/workspaces/[id]/members/[memberId]` — remove member
+- `DELETE /api/workspaces/[id]/invitations/[invitationId]` — revoke invitation
+
+**Files:**
+- `POST /api/files` — create file
+- `PATCH /api/files/[id]` — update file
+- `DELETE /api/files/[id]` — delete file
+
+**Folders:**
+- `POST /api/folders` — create folder
+- `PATCH /api/folders/[id]` — rename folder
+- `DELETE /api/folders/[id]` — delete folder
+
+**Invitations:**
+- `GET /api/invitations/[token]` — get invitation details
+- `POST /api/invitations/[token]/accept` — accept invitation
+
+### 7. Real-Time Collaboration
+- WebSocket server via Hocuspocus + Yjs
+- Content synchronization between users
+- Cursor presence tracking
+- Extension points for database persistence and Redis
+
+### 8. Database Schema
+
+Migrations:
+- `001` — initial schema (users, workspaces, files, folders, share_links, team_members, collab_sessions)
+- `002` — auth trigger (auto-create user + workspace)
+- `003` — fix auth trigger (COALESCE fallback)
+- `004` — collab state table
+- `005` — workspace invitations
+- `006` — folder-level sharing
+- `007` — OTP auth fallback (email prefix as display_name)
+
+---
+
+## Architecture
+
 ```
 app.vue
-├── Uses <NuxtLayout>
-├── Delegates to layout system
-├── No boilerplate
-└── Clean SEO setup
+├── NuxtLayout
+│   ├── layouts/auth.vue (login, callback)
+│   └── layouts/default.vue (workspace)
+├── NuxtPage
+│   ├── / (email login)
+│   ├── /auth/callback
+│   ├── /workspace (list)
+│   ├── /workspace/[id] (editor)
+│   └── /invite/[token]
+├── middleware/auth.ts (client)
+├── composables/ (useAuth, useFiles, useCollaboration, useSaveState)
+└── components/ (FileExplorer, RouteEditor, ShareModal, etc.)
+
+server/
+├── middleware/auth.ts (API guard)
+├── extensions/hocuspocus.ts (WebSocket)
+├── utils/ (auth, db, access, email, publicUser)
+├── api/auth/
+├── api/workspaces/
+├── api/files/
+├── api/folders/
+├── api/invitations/
+└── routes/ws/collab.ts
 ```
 
 ---
 
-## 📊 Architecture
+## Environment Variables
 
-```
-┌─────────────────────────────────┐
-│         app.vue                 │
-│  (NuxtLayout + NuxtPage)        │
-└──────────────┬──────────────────┘
-               │
-        ┌──────┴──────┐
-        │             │
-   ┌────▼────┐  ┌────▼─────┐
-   │auth.vue │  │default.vue│
-   │ (login) │  │(workspace)│
-   └────┬────┘  └────┬──────┘
-        │             │
-   ┌────▼─┐      ┌────▼────┐
-   │index │      │workspace/
-   │callback    │[id]
-   └──────┘      └─────────┘
-        │             │
-        └─────┬───────┘
-              │
-        ┌─────▼──────┐
-        │ middleware │
-        │auth.client │
-        └────────────┘
+```env
+NUXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NUXT_PUBLIC_SUPABASE_KEY=your-anon-key
+NUXT_SUPABASE_SECRET_KEY=your-service-role-key
 ```
 
 ---
 
-## 🔄 Authentication Flow
+## Getting Started
 
-```
-1. User → http://localhost:3000
-              ↓
-2. Middleware checks: not authenticated
-   → Page loads: login page
-              ↓
-3. Click "Sign in with Google"
-   → useAuth.login() opens OAuth
-              ↓
-4. Google OAuth consent
-   → User authorizes
-              ↓
-5. Redirect: app.com/auth/callback?code=XXX
-   → @nuxtjs/supabase intercepts code
-   → Exchanges for JWT
-   → Stores in HTTP-only cookie
-              ↓
-6. Middleware checks: authenticated
-   → Checks if auth page
-   → Redirects to /workspace
-              ↓
-7. callback.vue onMounted:
-   → Fetches first workspace
-   → Redirects to /workspace/[id]
-              ↓
-8. SQL Trigger (automatic):
-   - Created users record
-   - Created workspaces record
-   - Ready for editing
-```
-
----
-
-## 🗂️ File Structure
-
-```
-app/
-├── app.vue                           # Root (NuxtLayout wrapper)
-├── middleware/
-│   ├── auth.client.ts               # Auth routing logic
-│   └── README.md                    # Middleware docs
-├── layouts/
-│   ├── auth.vue                     # Login/callback layout
-│   └── default.vue                  # Workspace layout
-├── pages/
-│   ├── index.vue                    # Login page
-│   ├── auth/
-│   │   └── callback.vue             # OAuth callback
-│   └── workspace/
-│       └── [id].vue                 # Editor/dashboard
-├── composables/
-│   └── useAuth.ts                   # Auth logic
-├── server/
-│   ├── api/
-│   │   ├── auth/
-│   │   │   └── profile.get.ts
-│   │   └── workspaces/
-│   │       └── first.get.ts
-│   └── middleware/
-│       └── auth.ts                  # Server auth guard
-└── assets/
-    └── css/
-        └── main.css                 # Tailwind + Nuxt UI
-```
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-1. Node.js 18+
-2. pnpm installed
-3. Supabase account
-4. Google OAuth credentials
-
-### Setup
 ```bash
-# Clone and install
-git clone <repo>
-cd routeforge
 pnpm install
-
-# Configure environment
-cp .env.example .env.local
-# Fill in Supabase URL, keys, and Google OAuth credentials
-
-# Start dev server
-pnpm dev
-
-# Visit http://localhost:3000
-```
-
-### Testing Auth Flow
-```bash
-# In incognito/private window:
-
-1. http://localhost:3000
-   → See login page
-
-2. Click "Sign in with Google"
-   → Authorize in Google
-
-3. Redirected to /auth/callback
-   → See loading state
-   → Auto-redirect to /workspace/[id]
-
-4. See workspace/editor
-
-5. Click logout
-   → Redirected to /
-
-6. Try accessing /workspace directly (not authenticated)
-   → Redirected to /
+pnpm dev        # http://localhost:3000
+pnpm build      # production build
 ```
 
 ---
 
-## 📋 Checklist
+## Next Steps
 
-### Development
-- [x] Middleware routing implemented
-- [x] Auth pages protected
-- [x] Workspace pages protected
-- [x] useAuth composable complete
-- [x] API endpoints created
-- [x] Layouts configured
-- [x] App.vue cleaned up
-- [x] Documentation complete
-
-### Before Production
-- [ ] Configure Google OAuth in Google Cloud Console
-- [ ] Configure Supabase Auth (OAuth provider)
-- [ ] Verify RLS policies on database tables
-- [ ] Setup error tracking (Sentry optional)
-- [ ] Configure CORS if needed
-- [ ] Load test OAuth flow
-- [ ] Setup CI/CD pipeline
+- Public link generation & sharing
+- Download/export (TXT, MD, JSON, ZIP)
+- Search within workspace
+- Rate limiting & security headers
+- File metadata & version history
+- Analytics & monitoring
 
 ---
 
-## 📚 Documentation Files
-
-- **`AUTH_IMPLEMENTATION.md`** - Detailed auth implementation guide
-- **`app/middleware/README.md`** - Middleware usage and patterns
-- **`spec.md`** - Product specification
-- **`techspec.md`** - Technical architecture
-- **`features.md`** - Feature list (24 features)
-
----
-
-## 🎯 Next Steps
-
-### Phase 2 (Workspace Editor)
-- [ ] File/folder CRUD operations
-- [ ] CodeMirror editor integration
-- [ ] Syntax highlighting for route syntax
-- [ ] Auto-save functionality
-- [ ] Search within workspace
-
-### Phase 3 (Collaboration)
-- [ ] WebSocket setup (Socket.io)
-- [ ] Real-time cursors
-- [ ] Content sync between users
-- [ ] Presence indicators
-
-### Phase 4 (Sharing & Export)
-- [ ] Public link generation
-- [ ] Download exports (TXT, MD, JSON)
-- [ ] Team member invitations
-- [ ] Role-based access control
-
----
-
-## 📈 Performance Notes
-
-- ✅ **Auth**: JWT validation on every request (server middleware)
-- ✅ **Routing**: Client-side middleware checks before page renders
-- ✅ **Sessions**: HTTP-only cookies (no XSS vulnerability)
-- ✅ **Caching**: Supabase handles session caching automatically
-
----
-
-## 🔒 Security Checklist
-
-- [x] JWT in HTTP-only cookies
-- [x] Server-side auth middleware
-- [x] Client-side route protection
-- [x] Service role key in env variables only
-- [x] Anon key for public operations
-- [ ] RLS policies (ready, needs Supabase setup)
-- [ ] CORS configured (if needed)
-- [ ] Rate limiting (Phase 4)
-
----
-
-## 💡 Developer Notes
-
-### Useful Commands
-```bash
-pnpm dev              # Start dev server
-pnpm build            # Build for production
-pnpm lint             # Run ESLint
-pnpm preview          # Preview production build
-pnpm migration:dev    # Run database migrations
-```
-
-### Key Files to Understand
-1. **`app/middleware/auth.client.ts`** - How routing works
-2. **`app/composables/useAuth.ts`** - Auth logic
-3. **`app/pages/auth/callback.vue`** - OAuth callback handling
-4. **`nuxt.config.ts`** - Supabase configuration
-
-### Common Patterns
-```typescript
-// Using auth in a page
-const { user, login, logout } = useAuth()
-
-// Protecting routes
-definePageMeta({ middleware: 'auth' })
-
-// Checking auth status
-const isAuthenticated = await checkAuthStatus()
-
-// Fetching workspace
-const workspace = await getFirstWorkspace()
-```
-
----
-
-**Status: Ready for Development** ✅  
-**Quality: Production-ready architecture** ✅  
-**Documentation: Complete** ✅  
-
----
-
-Last updated: 2025-05-01
+**Last updated:** 2026-05-20

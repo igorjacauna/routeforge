@@ -22,7 +22,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/',
       callback: '/auth/callback',
-      exclude: []
+      exclude: ['/invite/*']
     }
   },
 

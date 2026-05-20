@@ -9,7 +9,7 @@
 │                    Nuxt 4 + Nuxt UI                        │
 │  ┌──────────────────┐    ┌──────────────────────────────┐   │
 │  │ Frontend Pages   │    │ Nitro API Routes (/server)   │   │
-│  │ - Google OAuth   │    │ - REST endpoints             │   │
+│  │ - Auth callback │    │ - REST endpoints             │   │
 │  │ - Workspace UI   │    │ - WebSocket handlers         │   │
 │  │ - Editor         │    │ - Auth guards                │   │
 │  │ - File tree      │    │ - Business logic             │   │
@@ -31,9 +31,9 @@
          │  │- file_versions
          │  └────────────┘ │
          │  ┌────────────┐ │
-         │  │ OAuth 2.0  │ │
-         │  │ - Google   │ │
-         │  │ - JWT      │ │
+         │  │ Magic Link│ │
+         │  │ - Email   │ │
+         │  │ - JWT     │ │
          │  └────────────┘ │
          └─────────────────┘
 ```
@@ -42,7 +42,7 @@
 
 **Supabase** over Firebase: PostgreSQL allows complex queries (search), full ACID transactions (critical for sync), larger free quotas for concurrent connections (important for real-time).
 
-**Nitro Backend**: Native Nuxt integration; runs on same server; uses Supabase Auth directly without extra OAuth/login layer.
+**Nitro Backend**: Native Nuxt integration; runs on same server; uses Supabase Auth directly without extra login layer.
 
 **Upstash Redis** over self-hosted: 
 - Free tier: 10k commands/day (sufficient for MVP)
@@ -56,7 +56,7 @@
 - Built-in DDoS protection (Cloud Run security)
 - Deploy: `firebase deploy` one-command
 - Cost: $0 MVP, $0.40/1M requests at scale
-- Advantage: You already use Firebase; Google OAuth is native
+- Advantage: You already use Firebase; magic link auth is simpler
 
 **Alternatives**:
 - **Vercel**: Free but vulnerable to bot charges (your concern is valid)
@@ -264,19 +264,14 @@ CREATE INDEX idx_collaboration_sessions_is_active ON collaboration_sessions(is_a
 ### Authentication Endpoints
 
 ```
-GET /api/auth/google
-  Query: { redirectUrl }
-  Response: { authUrl } // Redirect to Google OAuth
+POST /api/auth/profile
+  Response: { user, workspace, workspaces[] }
   
-POST /api/auth/google/callback
-  Request: { code, state }
-  Response: { user, session, jwt }
-  
-POST /api/auth/logout
-  Response: { success }
-  
-POST /api/auth/refresh
-  Response: { session }
+GET /api/workspaces/first
+  Response: { workspace | null }
+
+GET /api/workspaces/ensure
+  Response: { workspace }
 ```
 
 ### Workspace Endpoints
@@ -718,8 +713,6 @@ pnpm dev
    NUXT_PUBLIC_SUPABASE_URL=https://...supabase.co
    NUXT_PUBLIC_SUPABASE_KEY=<production_anon_key>
    NUXT_SUPABASE_SECRET_KEY=<production_service_role_key>
-   NUXT_PUBLIC_GOOGLE_CLIENT_ID=<google_oauth_client_id>
-   GOOGLE_CLIENT_SECRET=<google_oauth_secret>
    UPSTASH_REDIS_REST_URL=<from_upstash_dashboard>
    UPSTASH_REDIS_REST_TOKEN=<from_upstash_dashboard>
    NODE_ENV=production
@@ -789,8 +782,6 @@ services:
       - NUXT_SUPABASE_SECRET_KEY
       - UPSTASH_REDIS_REST_URL
       - UPSTASH_REDIS_REST_TOKEN
-      - NUXT_PUBLIC_GOOGLE_CLIENT_ID
-      - GOOGLE_CLIENT_SECRET
       - NODE_ENV=production
     restart: unless-stopped
 ```
@@ -824,12 +815,12 @@ docker-compose -f docker-compose.yml up -d
 
 ### Authentication & Authorization
 
-- **OAuth 2.0 with Google**: Only authentication method; Supabase Auth provider
+- **Email magic link**: Only authentication method; Supabase Auth provider
 - **JWT tokens**: Issued by Supabase; stored in HTTP-only cookies
 - **CORS**: Allow only trusted origins (frontend domain)
 - **CSRF**: Use SameSite cookies
 - **Rate limiting**: 
-  - OAuth callback: 5 attempts per IP per hour
+  - Auth callback: 5 attempts per IP per hour
   - API endpoints: 100 requests per user per minute (Upstash enforced)
   - Bot detection: Monitor for unusual patterns (high request volume, missing User-Agent)
 
@@ -891,7 +882,7 @@ docker-compose -f docker-compose.yml up -d
 - **Firebase App Hosting**: Free (180 min/day CPU); $0.40/1M requests at scale
 - **Supabase**: Free (500 MB DB, unlimited auth)
 - **Upstash Redis**: Free (10k commands/day); $0.20/100k commands at scale
-- **Google OAuth**: Free
+- **Email magic link**: Free
 - **Monitoring (Sentry/LogRocket)**: Free tier
 
 **MVP Phase**: $0 (completely free)
@@ -902,10 +893,10 @@ docker-compose -f docker-compose.yml up -d
 ## 10. Implementation Roadmap
 
 ### Phase 1 (MVP): Weeks 1–4
-1. Setup Nuxt 4 + Supabase + Google OAuth (Features #1–4)
+1. Setup Nuxt 4 + Supabase + Email Magic Link (Features #1–4)
 2. File/folder CRUD + tree UI (Features #5–6)
 3. Basic editor + auto-save (Feature #7)
-4. Google OAuth login flow (Feature #1)
+4. Email magic link login flow (Feature #1)
 
 ### Phase 2: Weeks 5–6
 5. Syntax highlighting (Feature #8)

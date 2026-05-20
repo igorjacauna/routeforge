@@ -8,7 +8,7 @@
 - **Escalabilidade**: Automática; paga conforme cresce
 - **CORS/Security**: Built-in Cloud Run security
 - **WebSocket**: ✅ Suportado nativamente
-- **Integração**: Google OAuth nativo via Firebase Auth (Supabase Auth também funciona)
+- **Integração**: Magic link auth via Supabase Auth
 - **Deploy**: `firebase deploy` one-command
 - **Cold starts**: ~3-5s (Cloud Run default)
 - **Custo ao escalar**: $0.40 por 1M requests (muito razoável)
@@ -16,7 +16,7 @@
 **Vantagens:**
 - Free tier real (180 min/dia é ~$10-20 em uso pago)
 - Você já usa Firebase em outros projetos
-- Google OAuth é nativo
+- Auth via magic link é simples
 - Não há risk de charges inesperadas (bem definido)
 - Deploy super fácil (integrado com `firebase-tools`)
 
@@ -70,7 +70,7 @@
 
 1. **Free real**: 180 min/dia é suficiente para MVP
 2. **Você já sabe Firebase**: Integração suave
-3. **Google OAuth**: Nativo via Firebase Auth ou Supabase Auth
+3. **Magic link auth**: Simples, sem dependência de terceiros
 4. **Segurança**: Cloud Run tem proteção contra bots por padrão
 5. **Escalável**: Paga conforme cresce ($0.40/1M requests)
 6. **Sem surpresas**: Custo é transparente e capped por recursos
@@ -103,8 +103,6 @@ firebase deploy --only hosting
 NUXT_PUBLIC_SUPABASE_URL=https://...supabase.co
 NUXT_PUBLIC_SUPABASE_KEY=<anon_key>
 NUXT_SUPABASE_SECRET_KEY=<service_role_key>
-NUXT_PUBLIC_GOOGLE_CLIENT_ID=<google_oauth>
-GOOGLE_CLIENT_SECRET=<google_oauth>
 UPSTASH_REDIS_REST_URL=<upstash>
 UPSTASH_REDIS_REST_TOKEN=<upstash>
 ```
@@ -142,7 +140,7 @@ If 3-5s cold start is unacceptable:
 **Use Firebase App Hosting** for RouteForge:
 - ✅ Free tier is real and usable
 - ✅ You know Firebase already
-- ✅ Google OAuth is native
+- ✅ Magic link auth is simple
 - ✅ Costs scale predictably
 - ✅ No surprise charges from bots
 - ✅ Built-in security & DDoS protection

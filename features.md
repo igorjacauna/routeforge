@@ -2,20 +2,20 @@
 
 ---
 
-## 1. Google OAuth Authentication
+## 1. Email Magic Link Authentication
 
-Enable users to create accounts and authenticate via Google OAuth exclusively.
+Enable users to create accounts and authenticate via email magic links (passwordless).
 
 **User flow**
-1. Visitor clicks "Sign In with Google"
-2. Redirected to Google OAuth consent screen
-3. User grants permission; redirected back to app with auth code
-4. Backend exchanges code for JWT token
-5. If first login: automatically create user account + workspace
-6. User is logged in and can access workspace
+1. Visitor enters email address
+2. System sends magic link to that email (via Supabase / Resend SMTP)
+3. Visitor clicks link in email
+4. Supabase validates token, creates session (JWT in HTTP-only cookie)
+5. If first login: SQL trigger automatically creates user account + workspace
+6. User is redirected to workspace dashboard
 
 **UI overview**
-Single login page with "Sign In with Google" button (Nuxt UI button component). No email/password fields. OAuth popup/redirect handled by Supabase Auth. On successful auth, user redirected to workspace dashboard.
+Single login page with email input and "Send magic link" button. After sending, a confirmation screen tells the user to check their email. No passwords, no third-party OAuth consent screens.
 
 ---
 

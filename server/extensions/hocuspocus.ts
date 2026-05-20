@@ -3,6 +3,7 @@ import { Database } from '@hocuspocus/extension-database'
 import { Redis } from '@hocuspocus/extension-redis'
 import * as Y from 'yjs'
 import { db as supabaseAdmin } from '../utils/db'
+import { getWorkspaceAccess, isFileInGrantedFolder } from '../utils/access'
 
 async function resolvePublicUserId(authId: string): Promise<string | null> {
   const { data } = await supabaseAdmin.from('users').select('id').eq('auth_id', authId).single()
@@ -11,20 +12,14 @@ async function resolvePublicUserId(authId: string): Promise<string | null> {
 
 async function canAccessFile(publicUserId: string, fileId: string): Promise<boolean> {
   const { data: file } = await supabaseAdmin
-    .from('files').select('workspace_id').eq('id', fileId).single()
+    .from('files').select('workspace_id, folder_id').eq('id', fileId).single()
   if (!file) return false
 
-  const { data: workspace } = await supabaseAdmin
-    .from('workspaces').select('id')
-    .eq('id', file.workspace_id).eq('owner_id', publicUserId).single()
-  if (workspace) return true
+  const access = await getWorkspaceAccess(publicUserId, file.workspace_id)
+  if (!access) return false
+  if (access.isOwner || access.isWorkspaceLevel) return true
 
-  const { data: member } = await supabaseAdmin
-    .from('team_members').select('id')
-    .eq('workspace_id', file.workspace_id)
-    .eq('user_id', publicUserId)
-    .eq('status', 'accepted').single()
-  return !!member
+  return isFileInGrantedFolder(file.folder_id, access.grantedFolderIds)
 }
 
 const extensions: Extension[] = [
@@ -37,7 +32,6 @@ const extensions: Extension[] = [
         return Buffer.from(data.collab_state, 'base64')
       }
 
-      // First collab session — bootstrap Yjs doc from plain text content
       if (data?.content) {
         const ydoc = new Y.Doc()
         ydoc.getText('content').insert(0, data.content)
@@ -62,7 +56,6 @@ const extensions: Extension[] = [
   }),
 ]
 
-// Redis for pub/sub between Cloud Run instances — only when configured
 if (process.env.UPSTASH_REDIS_HOST && process.env.UPSTASH_REDIS_PASSWORD) {
   extensions.unshift(new Redis({
     identifier: 'routeforge',

@@ -25,7 +25,7 @@ RouteForge is a workspace-based notebook for documenting API routes and endpoint
 - Can create shareable public links to route files/folders (read-only)
 - Can generate downloadable exports of route documentation (single file or folder)
 - Cannot invite other users; all sharing is via public links or file downloads
-- Authenticates with Google OAuth
+- Authenticates via email magic link
 
 ### Team Member
 - Can create a workspace and invite other users to a team/workspace
@@ -33,7 +33,7 @@ RouteForge is a workspace-based notebook for documenting API routes and endpoint
 - Can create public links (read-only) for external sharing of specific routes
 - Can create private invite links that allow invited users to edit (if sharing permissions are set to read-write)
 - Sees team member cursors and presence in the editor
-- Authenticates with Google OAuth
+- Authenticates via email magic link
 
 ### Public Link Visitor (Unauthenticated)
 - Can view route documentation via public read-only links
@@ -132,9 +132,9 @@ When multiple team members edit the same file simultaneously:
 ### 5. Authentication & Authorization
 
 **Sign-Up/Login:**
-- OAuth 2.0 via Google exclusively (no email/password)
+- Email magic link (passwordless)
 - Sessions persist across browser restarts (HTTP-only cookies)
-- First-time users: workspace auto-created on successful OAuth
+- First-time users: workspace auto-created on first magic link login
 
 **Authorization:**
 - Users own their workspace and can only edit their own files unless explicitly shared
@@ -166,7 +166,7 @@ Each file tracks:
 - **Editor** — CodeMirror (with custom tokenizer for route syntax)
 - **Real-Time Sync** — WebSocket (Socket.io) with Upstash Redis pub/sub
 - **Backend** — Nitro (Nuxt's server framework) with PostgreSQL database
-- **Authentication** — Supabase Auth with Google OAuth 2.0
+- **Authentication** — Supabase Auth with email magic link
 - **Cache/Sessions** — Upstash Redis (serverless, no infra)
 - **Styling** — Tailwind CSS (Nuxt UI default) + custom Nuxt UI theme
 - **Deployment** — Railway.app (recommended) or self-hosted (DigitalOcean $5/month VPS)
@@ -175,7 +175,7 @@ Each file tracks:
 
 ## Assumptions & Decisions
 
-1. **Authentication:** Google OAuth exclusively; no email/password. Simplifies auth flow and reduces account recovery overhead.
+1. **Authentication:** Email magic link (passwordless). Simplifies auth flow and reduces account recovery overhead.
 2. **Real-Time Sync:** WebSocket via Socket.io + Upstash Redis for simplicity; team may switch to alternatives (y-js, Automerge) if advanced conflict resolution is needed later.
 3. **Storage:** Backend uses PostgreSQL for user, workspace, and file metadata; actual file content stored as text in the database. Upstash Redis stores ephemeral session data (who's editing, cursor positions).
 4. **Syntax Highlighting:** Custom tokenizer for route syntax using a simple lexer; not using a full language parser (WASM-based) to keep bundle size lean.

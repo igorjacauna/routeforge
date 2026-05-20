@@ -9,6 +9,7 @@ useSeoMeta({
 })
 
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -16,17 +17,21 @@ const statusMessage = ref('Processando autenticação...')
 
 onMounted(async () => {
   try {
-    await new Promise(resolve => setTimeout(resolve, 800))
+    statusMessage.value = 'Verificando...'
 
-    statusMessage.value = 'Carregando seu workspace...'
-
-    const { workspace } = await $fetch('/api/workspaces/ensure', { method: 'POST' })
-
-    if (!workspace) {
-      throw new Error('Não foi possível criar o workspace.')
+    // @nuxtjs/supabase handles the token exchange from the magic link automatically.
+    // Wait for the session to be established, then redirect.
+    const user = useSupabaseUser()
+    const maxWait = 10000
+    const start = Date.now()
+    while (!user.value && Date.now() - start < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
 
-    await router.replace(`/workspace/${workspace.id}`)
+    const next = route.query.next as string | undefined
+    statusMessage.value = next ? 'Redirecionando...' : 'Carregando seu workspace...'
+
+    await router.replace(next || '/workspace')
   } catch (err: any) {
     console.error('Callback error:', err)
     loading.value = false

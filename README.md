@@ -1,64 +1,75 @@
-# Nuxt Starter Template
+# RouteForge
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+API route documentation editor with real-time collaboration.
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+## Features
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+- **Email magic link login** — passwordless auth via Supabase + Resend
+- **Real-time collaboration** — multiple users editing the same file simultaneously (Hocuspocus + Yjs)
+- **Syntax highlighting** — TypeScript-like syntax highlighting for API route definitions
+- **File explorer** — hierarchical tree with drag-and-drop, context menus, breadcrumb navigation
+- **Workspace management** — multiple workspaces, team member invitations, role-based access
+- **Auto-save** — debounced saving with status indicator
 
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png" width="830" height="466">
-  </picture>
-</a>
+## Stack
 
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
+- **Frontend:** Nuxt 4 + Nuxt UI v4 + Tailwind CSS 4
+- **Editor:** CodeMirror 6
+- **Backend:** Supabase (PostgreSQL, Auth, Realtime)
+- **Collaboration:** Hocuspocus + Yjs
+- **Email:** Resend
 
 ## Quick Start
 
-```bash [Terminal]
-npm create nuxt@latest -- -t ui
-```
-
-## Deploy your own
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
-
-## Setup
-
-Make sure to install the dependencies:
-
 ```bash
 pnpm install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
+cp .env.example .env
+# Fill in Supabase URL, anon key, and service key
 pnpm dev
 ```
 
-## Production
+Open [http://localhost:3000](http://localhost:3000).
 
-Build the application for production:
+## Project Structure
 
-```bash
-pnpm build
+```
+app/
+├── pages/         # File-based routing
+├── components/    # Vue components
+├── composables/   # Shared logic (useAuth, useFiles, useCollaboration, etc.)
+├── middleware/     # Client-side route protection
+└── layouts/       # Auth and default layouts
+
+server/
+├── api/           # REST endpoints
+├── extensions/    # Hocuspocus WebSocket server
+├── middleware/     # Server-side auth guard
+├── utils/         # Shared server utilities
+└── routes/        # Custom route handlers
+
+supabase/
+└── migrations/    # Database schema migrations
 ```
 
-Locally preview production build:
+## Documentation
+
+- [AUTH_IMPLEMENTATION.md](./AUTH_IMPLEMENTATION.md) — Auth system details
+- [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) — Full implementation overview
+- [features.md](./features.md) — Feature list and user flows
+- [spec.md](./spec.md) — Product specification
+- [techspec.md](./techspec.md) — Technical architecture
+
+## Scripts
 
 ```bash
-pnpm preview
+pnpm dev          # Start dev server
+pnpm build        # Build for production
+pnpm preview      # Preview production build
+pnpm lint         # Run ESLint
+pnpm typecheck    # TypeScript type checking
+pnpm migrate      # Run database migrations
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## License
 
-## Renovate integration
-
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
+MIT
