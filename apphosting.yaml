@@ -1,0 +1,20 @@
+runConfig:
+  minInstances: 0
+  maxInstances: 1
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NUXT_PUBLIC_SUPABASE_URL
+    secret: NUXT_PUBLIC_SUPABASE_URL
+  - variable: NUXT_PUBLIC_SUPABASE_KEY
+    secret: NUXT_PUBLIC_SUPABASE_KEY
+  - variable: NUXT_SUPABASE_SECRET_KEY
+    secret: NUXT_SUPABASE_SECRET_KEY
+  - variable: UPSTASH_REDIS_REST_URL
+    secret: UPSTASH_REDIS_REST_URL
+  - variable: UPSTASH_REDIS_REST_TOKEN
+    secret: UPSTASH_REDIS_REST_TOKEN
+  - variable: RESEND_API_KEY
+    secret: RESEND_API_KEY

@@ -16,23 +16,14 @@ export default defineNuxtConfig({
     }
   },
 
-  supabase: {
-    redirect: true,
-    useSsrCookies: true,
-    redirectOptions: {
-      login: '/',
-      callback: '/auth/callback',
-      exclude: ['/invite/*']
-    }
-  },
+  compatibilityDate: '2025-01-15',
 
   nitro: {
+    preset: 'firebase-app-hosting',
     experimental: {
       websocket: true
     }
   },
-
-  compatibilityDate: '2025-01-15',
 
   eslint: {
     config: {
@@ -40,6 +31,16 @@ export default defineNuxtConfig({
         commaDangle: 'never',
         braceStyle: '1tbs'
       }
+    }
+  },
+
+  supabase: {
+    redirect: true,
+    useSsrCookies: true,
+    redirectOptions: {
+      login: '/',
+      callback: '/auth/callback',
+      exclude: ['/invite/*']
     }
   }
 })
