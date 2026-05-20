@@ -104,13 +104,21 @@ NUXT_SUPABASE_SECRET_KEY=your-service-role-key
 
 **Configurar em:**
 1. `.env.local` (desenvolvimento)
-2. Supabase Dashboard > Project Settings > API
+2. Secret Manager do Google Cloud (produção)
 
 ---
 
 ## Configuração no Supabase
 
-### 1. Email Provider (Magic Link)
+### 1. Site URL e Redirect URLs
+
+**Supabase Dashboard > Authentication > URL Configuration**
+- Site URL: domínio de produção (ex: `https://routeforge.com`)
+- Redirect URLs: adicionar `https://routeforge.com/auth/callback` e `http://localhost:3000/auth/callback`
+
+> O Site URL é a base do magic link. Se estiver `localhost`, o link do email aponta pra localhost mesmo em produção.
+
+### 2. Email Provider (Magic Link)
 
 **Supabase Dashboard > Authentication > Providers > Email**
 - Enable email provider: ✅
@@ -119,12 +127,6 @@ NUXT_SUPABASE_SECRET_KEY=your-service-role-key
   - Port: `465`
   - Username: `resend`
   - Password: sua API key do Resend
-
-### 2. Redirect URLs
-
-**Supabase Dashboard > Authentication > URL Configuration**
-- Site URL: `http://localhost:3000` (dev) ou `https://seu-dominio.com` (prod)
-- Redirect URLs: `http://localhost:3000/auth/callback`, `https://seu-dominio.com/auth/callback`
 
 ### 3. RLS Policies (Recomendado)
 
