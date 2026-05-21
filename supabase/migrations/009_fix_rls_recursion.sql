@@ -1,8 +1,44 @@
--- ============================================
--- RLS Policies for all tables
--- ============================================
+-- Drop all existing policies to recreate without recursion
+DO $$ DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (
+    SELECT policyname, tablename FROM pg_policies
+    WHERE schemaname = 'public'
+      AND policyname IN (
+        'Users can read own profile',
+        'Users can insert own profile',
+        'Users can update own profile',
+        'Owners can manage workspaces',
+        'Members can view workspaces',
+        'Owners can manage team members',
+        'Users can read own membership',
+        'Users can accept own membership',
+        'Users can leave workspace',
+        'Owners can manage invitations',
+        'Users can read own invitations',
+        'Users can accept own invitations',
+        'Owners can manage folders',
+        'Editors can manage folders',
+        'Viewers can see folders',
+        'Owners can manage files',
+        'Editors can manage files',
+        'Viewers can see files',
+        'Owners can manage file versions',
+        'Editors can insert file versions',
+        'Members can view file versions',
+        'Owners can manage share links',
+        'Editors can manage share links',
+        'Anyone can read active share links by token',
+        'Members can manage collaboration sessions'
+      )
+  ) LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', r.policyname, r.tablename);
+  END LOOP;
+END $$;
 
--- Helper: resolve public.users.id from auth.uid()
+-- Helper functions (SECURITY DEFINER to bypass RLS)
+
 CREATE OR REPLACE FUNCTION public.current_user_id()
 RETURNS UUID
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -10,7 +46,6 @@ AS $$
   SELECT id FROM public.users WHERE auth_id = auth.uid()
 $$;
 
--- Helper: check workspace membership without triggering team_members RLS
 CREATE OR REPLACE FUNCTION public.is_workspace_member(ws_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -23,7 +58,6 @@ AS $$
   )
 $$;
 
--- Helper: check workspace ownership without triggering workspaces RLS
 CREATE OR REPLACE FUNCTION public.is_workspace_owner(ws_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -38,8 +72,6 @@ $$;
 -- ============================================
 -- users
 -- ============================================
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Users can read own profile" ON users
   FOR SELECT USING (auth_id = auth.uid());
 
@@ -52,8 +84,6 @@ CREATE POLICY "Users can update own profile" ON users
 -- ============================================
 -- workspaces
 -- ============================================
-ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Owners can manage workspaces" ON workspaces
   FOR ALL USING (owner_id = current_user_id());
 
@@ -63,8 +93,6 @@ CREATE POLICY "Members can view workspaces" ON workspaces
 -- ============================================
 -- team_members
 -- ============================================
-ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Owners can manage team members" ON team_members
   FOR ALL USING (is_workspace_owner(team_members.workspace_id));
 
@@ -80,8 +108,6 @@ CREATE POLICY "Users can leave workspace" ON team_members
 -- ============================================
 -- workspace_invitations
 -- ============================================
-ALTER TABLE workspace_invitations ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Owners can manage invitations" ON workspace_invitations
   FOR ALL USING (is_workspace_owner(workspace_invitations.workspace_id));
 
@@ -94,23 +120,21 @@ CREATE POLICY "Users can accept own invitations" ON workspace_invitations
 -- ============================================
 -- folders
 -- ============================================
-ALTER TABLE folders ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Owners can manage folders" ON folders
   FOR ALL USING (is_workspace_owner(folders.workspace_id));
 
 CREATE POLICY "Editors can manage folders" ON folders
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM team_members tm
-      WHERE tm.workspace_id = folders.workspace_id
-        AND tm.user_id = current_user_id()
-        AND tm.status = 'accepted'
-        AND tm.role = 'editor'
+      SELECT 1 FROM team_members
+      WHERE workspace_id = folders.workspace_id
+        AND user_id = current_user_id()
+        AND status = 'accepted'
+        AND role = 'editor'
         AND (
-          tm.folder_id IS NULL
-          OR tm.folder_id = folders.id
-          OR tm.folder_id = folders.parent_folder_id
+          folder_id IS NULL
+          OR folder_id = folders.id
+          OR folder_id = folders.parent_folder_id
         )
     )
   );
@@ -118,14 +142,14 @@ CREATE POLICY "Editors can manage folders" ON folders
 CREATE POLICY "Viewers can see folders" ON folders
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM team_members tm
-      WHERE tm.workspace_id = folders.workspace_id
-        AND tm.user_id = current_user_id()
-        AND tm.status = 'accepted'
+      SELECT 1 FROM team_members
+      WHERE workspace_id = folders.workspace_id
+        AND user_id = current_user_id()
+        AND status = 'accepted'
         AND (
-          tm.folder_id IS NULL
-          OR tm.folder_id = folders.id
-          OR tm.folder_id = folders.parent_folder_id
+          folder_id IS NULL
+          OR folder_id = folders.id
+          OR folder_id = folders.parent_folder_id
         )
     )
   );
@@ -133,22 +157,20 @@ CREATE POLICY "Viewers can see folders" ON folders
 -- ============================================
 -- files
 -- ============================================
-ALTER TABLE files ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Owners can manage files" ON files
   FOR ALL USING (is_workspace_owner(files.workspace_id));
 
 CREATE POLICY "Editors can manage files" ON files
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM team_members tm
-      WHERE tm.workspace_id = files.workspace_id
-        AND tm.user_id = current_user_id()
-        AND tm.status = 'accepted'
-        AND tm.role = 'editor'
+      SELECT 1 FROM team_members
+      WHERE workspace_id = files.workspace_id
+        AND user_id = current_user_id()
+        AND status = 'accepted'
+        AND role = 'editor'
         AND (
-          tm.folder_id IS NULL
-          OR tm.folder_id = files.folder_id
+          folder_id IS NULL
+          OR folder_id = files.folder_id
         )
     )
   );
@@ -156,13 +178,13 @@ CREATE POLICY "Editors can manage files" ON files
 CREATE POLICY "Viewers can see files" ON files
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM team_members tm
-      WHERE tm.workspace_id = files.workspace_id
-        AND tm.user_id = current_user_id()
-        AND tm.status = 'accepted'
+      SELECT 1 FROM team_members
+      WHERE workspace_id = files.workspace_id
+        AND user_id = current_user_id()
+        AND status = 'accepted'
         AND (
-          tm.folder_id IS NULL
-          OR tm.folder_id = files.folder_id
+          folder_id IS NULL
+          OR folder_id = files.folder_id
         )
     )
   );
@@ -170,8 +192,6 @@ CREATE POLICY "Viewers can see files" ON files
 -- ============================================
 -- file_versions
 -- ============================================
-ALTER TABLE file_versions ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Owners can manage file versions" ON file_versions
   FOR ALL USING (
     EXISTS (
@@ -185,11 +205,11 @@ CREATE POLICY "Editors can insert file versions" ON file_versions
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM files
-      JOIN team_members tm ON tm.workspace_id = files.workspace_id
+      JOIN team_members ON team_members.workspace_id = files.workspace_id
       WHERE file_versions.file_id = files.id
-        AND tm.user_id = current_user_id()
-        AND tm.status = 'accepted'
-        AND tm.role = 'editor'
+        AND team_members.user_id = current_user_id()
+        AND team_members.status = 'accepted'
+        AND team_members.role = 'editor'
     )
   );
 
@@ -197,29 +217,27 @@ CREATE POLICY "Members can view file versions" ON file_versions
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM files
-      JOIN team_members tm ON tm.workspace_id = files.workspace_id
+      JOIN team_members ON team_members.workspace_id = files.workspace_id
       WHERE file_versions.file_id = files.id
-        AND tm.user_id = current_user_id()
-        AND tm.status = 'accepted'
+        AND team_members.user_id = current_user_id()
+        AND team_members.status = 'accepted'
     )
   );
 
 -- ============================================
 -- share_links
 -- ============================================
-ALTER TABLE share_links ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Owners can manage share links" ON share_links
   FOR ALL USING (is_workspace_owner(share_links.workspace_id));
 
 CREATE POLICY "Editors can manage share links" ON share_links
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM team_members tm
-      WHERE tm.workspace_id = share_links.workspace_id
-        AND tm.user_id = current_user_id()
-        AND tm.status = 'accepted'
-        AND tm.role = 'editor'
+      SELECT 1 FROM team_members
+      WHERE workspace_id = share_links.workspace_id
+        AND user_id = current_user_id()
+        AND status = 'accepted'
+        AND role = 'editor'
     )
   );
 
@@ -229,8 +247,6 @@ CREATE POLICY "Anyone can read active share links by token" ON share_links
 -- ============================================
 -- collaboration_sessions
 -- ============================================
-ALTER TABLE collaboration_sessions ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Members can manage collaboration sessions" ON collaboration_sessions
   FOR ALL USING (
     EXISTS (
