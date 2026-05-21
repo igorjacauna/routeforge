@@ -19,10 +19,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-01-15',
 
   nitro: {
-    preset: 'firebase-app-hosting',
-    experimental: {
-      websocket: true
-    }
+    preset: 'firebase-app-hosting'
   },
 
   eslint: {
@@ -40,7 +37,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/',
       callback: '/auth/callback',
-      exclude: ['/invite/*', '/ws/*']
+      exclude: ['/invite/*']
     }
   }
 })
