@@ -6,6 +6,8 @@ export interface CollabUser {
   colorLight: string
 }
 
+export type SaveState = 'idle' | 'saving' | 'saved'
+
 const COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC', '#F06292', '#AED581']
 
 function userColor(id: string): string {
@@ -38,26 +40,58 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
   const isConnected = ref(false)
   const isSynced = ref(false)
   const hasError = ref(false)
+  const saveState = ref<SaveState>('idle')
 
   let isRemoteUpdate = false
   let initDone = false
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null
+  let lastSavedContent = ''
 
-  const loadInitialContent = async (fileId: string) => {
+  const doSave = async (id: string) => {
+    const content = yText.toString()
+    if (content === lastSavedContent) return
+
+    saveState.value = 'saving'
+    const { error } = await supabase
+      .from('files')
+      .update({ content, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (!error) {
+      lastSavedContent = content
+      saveState.value = 'saved'
+      setTimeout(() => { if (saveState.value === 'saved') saveState.value = 'idle' }, 2000)
+    }
+  }
+
+  const scheduleSave = (id: string) => {
+    if (saveTimeout) clearTimeout(saveTimeout)
+    saveTimeout = setTimeout(() => doSave(id), 5000)
+  }
+
+  const save = () => {
+    if (!fileId.value) return
+    if (saveTimeout) clearTimeout(saveTimeout)
+    doSave(fileId.value)
+  }
+
+  const loadInitialContent = async (id: string) => {
     const { data, error } = await supabase
       .from('files')
       .select('content')
-      .eq('id', fileId)
+      .eq('id', id)
       .single()
 
     if (!error && data) {
       isRemoteUpdate = true
       yText.delete(0, yText.length)
       yText.insert(0, data.content ?? '')
+      lastSavedContent = data.content ?? ''
       isRemoteUpdate = false
     }
   }
 
-  const connect = (fileId: string) => {
+  const connect = (id: string) => {
     if (!import.meta.client) return
     if (initDone) return
     initDone = true
@@ -66,22 +100,23 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
     const name = user.value?.email?.split('@')[0] ?? 'Anonymous'
     const colorLight = `${color}40`
 
-    // Load initial content, then create channel
-    loadInitialContent(fileId).then(() => {
+    loadInitialContent(id).then(() => {
       isSynced.value = true
     })
 
-    // Broadcast local Yjs updates to other clients
-    ydoc.on('update', (update: Uint8Array) => {
+    ydoc.on('update', (_update: Uint8Array) => {
       if (isRemoteUpdate) return
+      // Broadcast to other clients
       channel.value?.send({
         type: 'broadcast',
         event: 'ydoc-update',
-        payload: { update: uint8ToBase64(update) },
+        payload: { update: uint8ToBase64(_update) },
       })
+      // Debounced auto-save to database
+      scheduleSave(id)
     })
 
-    const c = supabase.channel(`file:${fileId}`, {
+    const c = supabase.channel(`file:${id}`, {
       config: {
         broadcast: { self: false },
         presence: { key: user.value?.id ?? 'anon' },
@@ -93,6 +128,7 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
       const update = base64ToUint8(payload.update)
       Y.applyUpdate(ydoc, update)
       isRemoteUpdate = false
+      scheduleSave(id)
     })
 
     c.on('presence', { event: 'sync' }, () => {
@@ -116,6 +152,13 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
   }
 
   const disconnect = () => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout)
+      // Flush pending save before leaving
+      if (fileId.value && yText.toString() !== lastSavedContent) {
+        doSave(fileId.value)
+      }
+    }
     if (channel.value) {
       supabase.removeChannel(channel.value)
       channel.value = null
@@ -125,6 +168,7 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
     isSynced.value = false
     hasError.value = false
     presentUsers.value = []
+    saveState.value = 'idle'
   }
 
   watch(fileId, (id) => {
@@ -134,5 +178,5 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
 
   onUnmounted(disconnect)
 
-  return { ydoc, yText, channel, presentUsers, isConnected, isSynced, hasError }
+  return { ydoc, yText, channel, presentUsers, isConnected, isSynced, hasError, saveState, save }
 }

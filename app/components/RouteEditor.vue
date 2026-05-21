@@ -72,11 +72,9 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLElement | null>(null)
 
-const { yText, presentUsers, isSynced, hasError } = useCollaboration(
+const { yText, presentUsers, isSynced, hasError, saveState, save } = useCollaboration(
   computed(() => props.fileId),
 )
-
-const { state: saveState } = useSaveState(yText)
 
 watch(saveState, (s) => emit('saveStateChange', s))
 
@@ -91,7 +89,7 @@ const initEditor = () => {
       extensions: [
         basicSetup,
         keymap.of([
-          { key: 'Mod-s', run: () => { emit('save'); return true } },
+          { key: 'Mod-s', run: () => { save(); return true } },
           indentWithTab,
         ]),
         yCollab(yText, null),
