@@ -72,7 +72,7 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLElement | null>(null)
 
-const { yText, presentUsers, isSynced, hasError, saveState, save } = useCollaboration(
+const { yText, awareness, presentUsers, isSynced, hasError, saveState, save } = useCollaboration(
   computed(() => props.fileId),
 )
 
@@ -92,7 +92,7 @@ const initEditor = () => {
           { key: 'Mod-s', run: () => { save(); return true } },
           indentWithTab,
         ]),
-        yCollab(yText, null),
+        yCollab(yText, awareness),
         EditorView.theme({
           '&': { height: '100%', fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: '14px' },
           '.cm-scroller': { overflow: 'auto', lineHeight: '1.6' },

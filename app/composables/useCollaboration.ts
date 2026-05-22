@@ -1,4 +1,5 @@
 import * as Y from 'yjs'
+import { Awareness } from 'y-protocols/awareness'
 
 export interface CollabUser {
   name: string
@@ -35,6 +36,7 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
 
   const ydoc = new Y.Doc()
   const yText = ydoc.getText('content')
+  const awareness = new Awareness(ydoc)
   const channel = shallowRef<ReturnType<typeof supabase.channel> | null>(null)
   const presentUsers = ref<CollabUser[]>([])
   const isConnected = ref(false)
@@ -46,6 +48,10 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
   let initDone = false
   let saveTimeout: ReturnType<typeof setTimeout> | null = null
   let lastSavedContent = ''
+
+  const color = userColor(user.value?.id ?? crypto.randomUUID())
+  const name = user.value?.email?.split('@')[0] ?? 'Anonymous'
+  const colorLight = `${color}40`
 
   const doSave = async (id: string) => {
     const content = yText.toString()
@@ -91,36 +97,59 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
     }
   }
 
+  const updatePresentUsers = () => {
+    presentUsers.value = Array.from(awareness.getStates().entries())
+      .filter(([, state]: [any, any]) => state.user)
+      .map(([, state]: [any, any]) => state.user as CollabUser)
+  }
+
   const connect = (id: string) => {
     if (!import.meta.client) return
     if (initDone) return
     initDone = true
 
-    const color = userColor(user.value?.id ?? 'anon')
-    const name = user.value?.email?.split('@')[0] ?? 'Anonymous'
-    const colorLight = `${color}40`
+    // Set local awareness state (cursor position is set by yCollab)
+    awareness.setLocalStateField('user', { name, color, colorLight })
 
     loadInitialContent(id).then(() => {
       isSynced.value = true
     })
 
-    ydoc.on('update', (_update: Uint8Array) => {
+    // Yjs document sync: broadcast local updates
+    ydoc.on('update', (update: Uint8Array) => {
       if (isRemoteUpdate) return
-      // Broadcast to other clients
       channel.value?.send({
         type: 'broadcast',
         event: 'ydoc-update',
-        payload: { update: uint8ToBase64(_update) },
+        payload: { update: uint8ToBase64(update) },
       })
-      // Debounced auto-save to database
       scheduleSave(id)
     })
 
+    // Awareness sync: broadcast local awareness changes
+    let awarenessSyncTimeout: ReturnType<typeof setTimeout> | null = null
+    awareness.on('update', () => {
+      if (awarenessSyncTimeout) clearTimeout(awarenessSyncTimeout)
+      awarenessSyncTimeout = setTimeout(() => {
+        const state = awareness.getLocalState()
+        if (state && channel.value) {
+          channel.value.send({
+            type: 'broadcast',
+            event: 'awareness',
+            payload: {
+              name: state.user?.name ?? name,
+              color: state.user?.color ?? color,
+              colorLight: state.user?.colorLight ?? colorLight,
+            },
+          })
+        }
+      }, 100) // debounce rapid cursor changes
+    })
+
+    updatePresentUsers()
+
     const c = supabase.channel(`file:${id}`, {
-      config: {
-        broadcast: { self: false },
-        presence: { key: user.value?.id ?? 'anon' },
-      },
+      config: { broadcast: { self: false } },
     })
 
     c.on('broadcast', { event: 'ydoc-update' }, ({ payload }: { payload: { update: string } }) => {
@@ -131,18 +160,27 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
       scheduleSave(id)
     })
 
-    c.on('presence', { event: 'sync' }, () => {
-      const state = c.presenceState()
-      presentUsers.value = Object.values(state)
-        .flat()
-        .map((s: any) => ({ name: s.name, color: s.color, colorLight: s.colorLight }))
+    c.on('broadcast', { event: 'awareness' }, ({ payload }: { payload: CollabUser }) => {
+      // Track remote user presence (color + name)
+      presentUsers.value = [
+        ...presentUsers.value.filter(u => u.name !== payload.name),
+        { name: payload.name, color: payload.color, colorLight: payload.colorLight },
+      ]
+      // Remove stale entries after 30s of silence
+      clearTimeout((c as any).__cleanupTimer)
+      ;(c as any).__cleanupTimer = setTimeout(() => {
+        presentUsers.value = presentUsers.value.filter(u => u.name === name)
+        awareness.getStates().forEach((state, clientID) => {
+          if (state.user?.name === name) return // keep local
+          awareness.states.delete(clientID)
+        })
+      }, 30000)
     })
 
-    c.subscribe(async (status: string) => {
+    c.subscribe((status: string) => {
       if (status === 'SUBSCRIBED') {
         isConnected.value = true
         hasError.value = false
-        await c.track({ name, color, colorLight })
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         hasError.value = true
       }
@@ -154,7 +192,6 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
   const disconnect = () => {
     if (saveTimeout) {
       clearTimeout(saveTimeout)
-      // Flush pending save before leaving
       if (fileId.value && yText.toString() !== lastSavedContent) {
         doSave(fileId.value)
       }
@@ -163,6 +200,7 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
       supabase.removeChannel(channel.value)
       channel.value = null
     }
+    awareness.destroy()
     initDone = false
     isConnected.value = false
     isSynced.value = false
@@ -178,5 +216,5 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
 
   onUnmounted(disconnect)
 
-  return { ydoc, yText, channel, presentUsers, isConnected, isSynced, hasError, saveState, save }
+  return { ydoc, yText, awareness, channel, presentUsers, isConnected, isSynced, hasError, saveState, save }
 }
