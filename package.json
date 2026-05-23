@@ -12,6 +12,10 @@
     "migrate": "tsx --env-file=.env scripts/migrate.ts"
   },
   "dependencies": {
+    "@hocuspocus/extension-database": "^4.0.0",
+    "@hocuspocus/extension-redis": "^4.0.0",
+    "@hocuspocus/provider": "^4.0.0",
+    "@hocuspocus/server": "^4.0.0",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/state": "^6.6.0",

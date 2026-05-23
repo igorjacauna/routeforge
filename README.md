@@ -5,7 +5,7 @@ API route documentation editor with real-time collaboration.
 ## Features
 
 - **Email magic link login** — passwordless auth via Supabase + Resend
-- **Real-time collaboration** — multiple users editing the same file simultaneously (Supabase Realtime + Yjs)
+- **Real-time collaboration** — multiple users editing the same file simultaneously (Hocuspocus + Yjs)
 - **Syntax highlighting** — TypeScript-like syntax highlighting for API route definitions
 - **File explorer** — hierarchical tree with drag-and-drop, context menus, breadcrumb navigation
 - **Workspace management** — multiple workspaces, team member invitations, role-based access
@@ -16,7 +16,7 @@ API route documentation editor with real-time collaboration.
 - **Frontend:** Nuxt 4 + Nuxt UI v4 + Tailwind CSS 4
 - **Editor:** CodeMirror 6
 - **Backend:** Supabase (PostgreSQL, Auth, Realtime)
-- **Collaboration:** Supabase Realtime + Yjs
+- **Collaboration:** Hocuspocus + Yjs
 - **Email:** Resend
 
 ## Quick Start
@@ -42,7 +42,7 @@ app/
 
 server/
 ├── api/           # REST endpoints
-├── extensions/    # Supabase Realtime WebSocket server
+├── extensions/    # Hocuspocus WebSocket server
 ├── middleware/     # Server-side auth guard
 ├── utils/         # Shared server utilities
 └── routes/        # Custom route handlers

@@ -19,7 +19,9 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-01-15',
 
   nitro: {
-    preset: 'firebase-app-hosting'
+    experimental: {
+      websocket: true
+    }
   },
 
   eslint: {

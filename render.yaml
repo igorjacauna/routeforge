@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: routeforge
+    env: node
+    buildCommand: pnpm install && pnpm build
+    startCommand: node .output/server/index.mjs
+    runtime: node
+    plan: free
+    envVars:
+      - key: NUXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NUXT_PUBLIC_SUPABASE_KEY
+        sync: false
+      - key: NUXT_SUPABASE_SECRET_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

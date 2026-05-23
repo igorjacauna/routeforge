@@ -29,7 +29,7 @@
 ### 4. Composables
 - `useAuth()` — login, logout, checkAuthStatus, getFirstWorkspace, getUserWorkspaces, getProfile
 - `useFiles()` — file/folder CRUD operations
-- `useCollaboration()` — real-time Yjs sync via Supabase Realtime
+- `useCollaboration()` — real-time Yjs sync via Hocuspocus
 - `useSaveState()` — debounced auto-save with status indicator
 - `useWorkspaceUI()` — workspace-level UI state
 
@@ -74,7 +74,7 @@
 - `POST /api/invitations/[token]/accept` — accept invitation
 
 ### 7. Real-Time Collaboration
-- WebSocket server via Supabase Realtime + Yjs
+- WebSocket server via Hocuspocus + Yjs
 - Content synchronization between users
 - Cursor presence tracking
 - Extension points for database persistence and Redis
