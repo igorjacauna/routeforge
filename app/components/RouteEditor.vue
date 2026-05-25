@@ -1,9 +1,9 @@
 <template>
-  <div class="flex flex-col h-full bg-white dark:bg-gray-900">
+  <div class="flex flex-col h-full bg-default">
     <!-- Presence bar -->
     <div
       v-if="presentUsers.length > 1"
-      class="flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-850"
+      class="flex items-center gap-2 px-4 py-1.5 border-b border-default bg-elevated/50"
     >
       <div class="flex -space-x-1.5">
         <UTooltip
@@ -19,7 +19,7 @@
           </div>
         </UTooltip>
       </div>
-      <span class="text-xs text-gray-500">
+      <span class="text-xs text-muted">
         {{ presentUsers.length }} people editing
       </span>
     </div>
@@ -72,7 +72,7 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLElement | null>(null)
 
-const { yText, provider, presentUsers, isSynced, hasError } = useCollaboration(
+const { yText, provider, presentUsers, localColor, isSynced, hasError } = useCollaboration(
   computed(() => props.fileId),
 )
 
@@ -100,6 +100,13 @@ const initEditor = () => {
           '.cm-scroller': { overflow: 'auto', lineHeight: '1.6' },
           '.cm-content': { padding: '24px' },
           '.cm-focused': { outline: 'none' },
+          '.cm-cursor': {
+            borderLeftColor: `${localColor.value} !important`,
+            borderLeftWidth: '2px',
+          },
+          '.cm-cursor-secondary': {
+            borderLeftColor: `${localColor.value} !important`,
+          },
         }),
       ],
     }),

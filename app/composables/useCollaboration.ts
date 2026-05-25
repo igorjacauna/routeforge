@@ -38,6 +38,7 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
   const yText = ydoc.getText('content')
   const provider = shallowRef<HocuspocusProvider | null>(null)
   const presentUsers = ref<CollabUser[]>([])
+  const localColor = ref('#000000')
   const isConnected = ref(false)
   const isSynced = ref(false)
   const hasError = ref(false)
@@ -69,6 +70,7 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
         .filter(Boolean)
     )
     const color = userColor(idForColor, takenColors)
+    localColor.value = color
 
     p.awareness?.setLocalStateField('user', {
       name: user.value?.email?.split('@')[0] ?? 'Anonymous',
@@ -101,5 +103,5 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
 
   onUnmounted(disconnect)
 
-  return { ydoc, yText, provider, presentUsers, isConnected, isSynced, hasError }
+  return { ydoc, yText, provider, presentUsers, localColor, isConnected, isSynced, hasError }
 }
