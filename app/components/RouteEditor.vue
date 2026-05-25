@@ -100,6 +100,15 @@ const initEditor = () => {
           '.cm-scroller': { overflow: 'auto', lineHeight: '1.6' },
           '.cm-content': { padding: '24px' },
           '.cm-focused': { outline: 'none' },
+          '.cm-gutters': {
+            backgroundColor: 'var(--ui-bg-elevated, #f9fafb)',
+            color: 'var(--ui-text-muted, #9ca3af)',
+            borderRight: '1px solid var(--ui-border, #e5e7eb)',
+          },
+          '.cm-activeLineGutter': {
+            backgroundColor: 'var(--ui-bg-elevated, #f3f4f6)',
+            color: 'var(--ui-text, #374151)',
+          },
           '.cm-cursor': {
             borderLeftColor: `${localColor.value} !important`,
             borderLeftWidth: '2px',
