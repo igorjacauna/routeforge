@@ -7,12 +7,27 @@ export interface CollabUser {
   colorLight: string
 }
 
-const COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC', '#F06292', '#AED581']
+const COLORS = [
+  '#E53935', '#D81B60', '#8E24AA', '#5E35B1', '#3949AB', '#1E88E5',
+  '#039BE5', '#00ACC1', '#00897B', '#43A047', '#7CB342', '#C0CA33',
+  '#FDD835', '#FFB300', '#FB8C00', '#F4511E',
+]
 
-function userColor(id: string): string {
+function userColor(id: string, takenColors: Set<string>): string {
+  // Deterministic slot from user identity
   let hash = 0
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
-  return COLORS[Math.abs(hash) % COLORS.length]!
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash) + id.charCodeAt(i)
+  const idx = Math.abs(hash) % COLORS.length
+
+  // If slot is free, use it. Otherwise scan for the first free slot.
+  const candidate = COLORS[idx]!
+  if (!takenColors.has(candidate)) return candidate
+
+  for (let i = 0; i < COLORS.length; i++) {
+    const c = COLORS[(idx + i) % COLORS.length]!
+    if (!takenColors.has(c)) return c
+  }
+  return candidate // fallback (all 16 taken by different people)
 }
 
 export const useCollaboration = (fileId: Ref<string | null>) => {
@@ -32,7 +47,6 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const url = `${proto}//${window.location.host}/ws/collab`
-    const color = userColor(user.value?.id ?? 'anon')
 
     const p = new HocuspocusProvider({
       url,
@@ -47,6 +61,14 @@ export const useCollaboration = (fileId: Ref<string | null>) => {
       onSynced: () => { isSynced.value = true },
       onClose: () => { hasError.value = true },
     })
+
+    const idForColor = user.value?.id || user.value?.email || crypto.randomUUID()
+    const takenColors = new Set(
+      Array.from(p.awareness!.getStates().values())
+        .map((s: any) => s.user?.color)
+        .filter(Boolean)
+    )
+    const color = userColor(idForColor, takenColors)
 
     p.awareness?.setLocalStateField('user', {
       name: user.value?.email?.split('@')[0] ?? 'Anonymous',

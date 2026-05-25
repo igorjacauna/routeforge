@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'auth',
+  layout: 'auth'
 })
 
 useSeoMeta({ title: 'Convite - RouteForge' })
@@ -21,13 +21,13 @@ interface InvitationData {
   isExpired: boolean
   workspace_id: string
   folder_id: string | null
-  workspaces: { id: string; name: string } | null
-  folders: { id: string; name: string } | null
-  users: { email: string; display_name: string | null; full_name: string | null } | null
+  workspaces: { id: string, name: string } | null
+  folders: { id: string, name: string } | null
+  users: { email: string, display_name: string | null, full_name: string | null } | null
 }
 
 const { data: invitation, status } = await useFetch<InvitationData>(`/api/invitations/${token}`, {
-  server: false,
+  server: false
 })
 
 const isAccepting = ref(false)
@@ -60,13 +60,13 @@ const handleAccept = async () => {
   isAccepting.value = true
   try {
     const result = await $fetch<{ workspace_id: string }>(`/api/invitations/${token}/accept`, {
-      method: 'POST',
+      method: 'POST'
     })
     toast.add({
       title: 'Convite aceito!',
       description: `Você agora tem acesso a "${workspaceName.value}"`,
       color: 'success',
-      icon: 'i-lucide-check-circle',
+      icon: 'i-lucide-check-circle'
     })
     await router.push(`/workspace/${result.workspace_id}`)
   } catch (err: any) {
@@ -75,13 +75,13 @@ const handleAccept = async () => {
       'Invitation already used': 'Este convite já foi utilizado.',
       'Invitation expired': 'Este convite expirou.',
       'This invitation was sent to a different email address':
-        `Este convite foi enviado para ${invitation.value?.invited_email}. Você está logado com outro e-mail.`,
+        `Este convite foi enviado para ${invitation.value?.invited_email}. Você está logado com outro e-mail.`
     }
     toast.add({
       title: 'Erro ao aceitar convite',
       description: msgMap[msg] || 'Tente novamente.',
       color: 'error',
-      icon: 'i-lucide-alert-triangle',
+      icon: 'i-lucide-alert-triangle'
     })
   } finally {
     isAccepting.value = false
@@ -90,47 +90,91 @@ const handleAccept = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-4">
+  <div class="flex items-center justify-center px-4">
     <div class="max-w-md w-full">
       <!-- Loading -->
-      <div v-if="status === 'pending'" class="text-center space-y-3">
-        <UIcon name="i-lucide-loader-2" class="size-8 mx-auto animate-spin text-primary" />
-        <p class="text-muted">Carregando convite...</p>
+      <div
+        v-if="status === 'pending'"
+        class="text-center space-y-3"
+      >
+        <UIcon
+          name="i-lucide-loader-2"
+          class="size-8 mx-auto animate-spin text-primary"
+        />
+        <p class="text-muted">
+          Carregando convite...
+        </p>
       </div>
 
       <!-- Error / not found -->
-      <UCard v-else-if="status === 'error'" class="text-center">
+      <UCard
+        v-else-if="status === 'error'"
+        class="text-center"
+      >
         <div class="py-4 space-y-4">
           <div class="mx-auto size-12 rounded-full bg-error/10 flex items-center justify-center">
-            <UIcon name="i-lucide-link-2-off" class="size-6 text-error" />
+            <UIcon
+              name="i-lucide-link-2-off"
+              class="size-6 text-error"
+            />
           </div>
-          <h1 class="text-xl font-bold">Convite não encontrado</h1>
-          <p class="text-sm text-muted">Este link é inválido ou foi removido.</p>
-          <UButton to="/" variant="soft">Voltar ao início</UButton>
+          <h1 class="text-xl font-bold">
+            Convite não encontrado
+          </h1>
+          <p class="text-sm text-muted">
+            Este link é inválido ou foi removido.
+          </p>
+          <UButton
+            to="/"
+            variant="soft"
+          >
+            Voltar ao início
+          </UButton>
         </div>
       </UCard>
 
       <!-- Expired -->
-      <UCard v-else-if="invitation?.isExpired || invitation?.status === 'expired'" class="text-center">
+      <UCard
+        v-else-if="invitation?.isExpired || invitation?.status === 'expired'"
+        class="text-center"
+      >
         <div class="py-4 space-y-4">
           <div class="mx-auto size-12 rounded-full bg-warning/10 flex items-center justify-center">
-            <UIcon name="i-lucide-clock" class="size-6 text-warning" />
+            <UIcon
+              name="i-lucide-clock"
+              class="size-6 text-warning"
+            />
           </div>
-          <h1 class="text-xl font-bold">Convite expirado</h1>
+          <h1 class="text-xl font-bold">
+            Convite expirado
+          </h1>
           <p class="text-sm text-muted">
             Este convite expirou. Peça ao proprietário do workspace que envie um novo convite.
           </p>
-          <UButton to="/" variant="soft">Voltar ao início</UButton>
+          <UButton
+            to="/"
+            variant="soft"
+          >
+            Voltar ao início
+          </UButton>
         </div>
       </UCard>
 
       <!-- Already accepted -->
-      <UCard v-else-if="invitation?.status === 'accepted'" class="text-center">
+      <UCard
+        v-else-if="invitation?.status === 'accepted'"
+        class="text-center"
+      >
         <div class="py-4 space-y-4">
           <div class="mx-auto size-12 rounded-full bg-success/10 flex items-center justify-center">
-            <UIcon name="i-lucide-check-circle" class="size-6 text-success" />
+            <UIcon
+              name="i-lucide-check-circle"
+              class="size-6 text-success"
+            />
           </div>
-          <h1 class="text-xl font-bold">Convite já aceito</h1>
+          <h1 class="text-xl font-bold">
+            Convite já aceito
+          </h1>
           <p class="text-sm text-muted">
             Você já faz parte de <strong>{{ workspaceName }}</strong>.
           </p>
@@ -141,7 +185,13 @@ const handleAccept = async () => {
           >
             Abrir workspace
           </UButton>
-          <UButton v-else to="/" variant="soft">Ir para o início</UButton>
+          <UButton
+            v-else
+            to="/"
+            variant="soft"
+          >
+            Ir para o início
+          </UButton>
         </div>
       </UCard>
 
@@ -149,7 +199,10 @@ const handleAccept = async () => {
       <UCard v-else-if="invitation">
         <template #header>
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-route" class="size-5 text-primary" />
+            <UIcon
+              name="i-lucide-route"
+              class="size-5 text-primary"
+            />
             <span class="text-lg font-bold">RouteForge</span>
           </div>
         </template>
@@ -157,9 +210,14 @@ const handleAccept = async () => {
         <div class="space-y-5">
           <div class="text-center space-y-2">
             <div class="mx-auto size-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <UIcon name="i-lucide-users" class="size-7 text-primary" />
+              <UIcon
+                name="i-lucide-users"
+                class="size-7 text-primary"
+              />
             </div>
-            <h1 class="text-xl font-bold">Você foi convidado!</h1>
+            <h1 class="text-xl font-bold">
+              Você foi convidado!
+            </h1>
             <p class="text-sm text-muted leading-relaxed">
               <strong class="text-default">{{ inviterName }}</strong>
               convidou você para colaborar em
@@ -205,8 +263,16 @@ const handleAccept = async () => {
           </UButton>
 
           <!-- Logged in + wrong email -->
-          <div v-else class="space-y-2">
-            <UButton block variant="soft" color="error" disabled>
+          <div
+            v-else
+            class="space-y-2"
+          >
+            <UButton
+              block
+              variant="soft"
+              color="error"
+              disabled
+            >
               Aceitar convite
             </UButton>
             <p class="text-xs text-center text-muted">
