@@ -56,6 +56,7 @@ import { EditorState } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import { indentWithTab } from '@codemirror/commands'
 import { yCollab } from 'y-codemirror.next'
+import { routeforge } from '~/lib/routeforge-language'
 
 const props = withDefaults(
   defineProps<{
@@ -90,6 +91,7 @@ const initEditor = () => {
       doc: yText.toString(),
       extensions: [
         basicSetup,
+        routeforge(),
         keymap.of([
           { key: 'Mod-s', run: () => { emit('save'); return true } },
           indentWithTab,

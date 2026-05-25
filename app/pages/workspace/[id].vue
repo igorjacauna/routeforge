@@ -41,7 +41,7 @@ const currentWorkspace = ref<WorkspaceItem | null>(null)
 const allWorkspaces = ref<WorkspaceItem[]>([])
 const isLoadingWorkspaceInfo = ref(true)
 
-const breadcrumbs = ref<Array<{ id: string; name: string }>>([])
+const breadcrumbs = ref<Array<{ id: string, name: string }>>([])
 const editorSaveState = ref<'idle' | 'saving' | 'saved'>('idle')
 const shareModalOpen = ref(false)
 
@@ -51,7 +51,7 @@ const promptModal = ref({
   placeholder: '',
   confirmLabel: 'Confirmar',
   initialValue: '',
-  onConfirm: (_value: string) => {},
+  onConfirm: (_value: string) => {}
 })
 
 const openPrompt = (opts: Omit<typeof promptModal.value, 'open'>) => {
@@ -63,12 +63,12 @@ const workspaceMenuItems = computed(() => {
     label: w.name,
     icon: w.isOwner ? 'i-lucide-layers' : 'i-lucide-users',
     checked: w.id === workspaceId,
-    onSelect: () => { if (w.id !== workspaceId) router.push(`/workspace/${w.id}`) },
+    onSelect: () => { if (w.id !== workspaceId) router.push(`/workspace/${w.id}`) }
   }))
 
   return [
     workspaceItems,
-    [{ label: 'Novo workspace', icon: 'i-lucide-plus', onSelect: createNewWorkspace }],
+    [{ label: 'Novo workspace', icon: 'i-lucide-plus', onSelect: createNewWorkspace }]
   ]
 })
 
@@ -82,7 +82,7 @@ const createNewWorkspace = () => {
       try {
         const created = await $fetch<WorkspaceItem>('/api/workspaces', {
           method: 'POST',
-          body: { name },
+          body: { name }
         })
         allWorkspaces.value.push(created)
         router.push(`/workspace/${created.id}`)
@@ -90,7 +90,7 @@ const createNewWorkspace = () => {
       } catch {
         toast.add({ title: 'Erro ao criar workspace', color: 'error', icon: 'i-lucide-alert-triangle' })
       }
-    },
+    }
   })
 }
 
@@ -100,7 +100,7 @@ useSeoMeta({
 
 const currentFile = computed(() => {
   if (!selectedFileId.value) return null
-  return files.value.find((f) => f.id === selectedFileId.value)
+  return files.value.find(f => f.id === selectedFileId.value)
 })
 
 watch(
@@ -115,13 +115,13 @@ const updateBreadcrumbs = () => {
   breadcrumbs.value = []
   if (!selectedFileId.value) return
 
-  const file = files.value.find((f) => f.id === selectedFileId.value)
+  const file = files.value.find(f => f.id === selectedFileId.value)
   if (!file) return
 
   let currentFolderId = file.parentFolderId
 
   while (currentFolderId) {
-    const folder = folders.value.find((f) => f.id === currentFolderId)
+    const folder = folders.value.find(f => f.id === currentFolderId)
     if (!folder) break
 
     breadcrumbs.value.unshift({ id: folder.id, name: folder.name })
@@ -205,7 +205,7 @@ const handleCreateFirstFile = () => {
     placeholder: 'untitled.route',
     confirmLabel: 'Criar',
     initialValue: '',
-    onConfirm: (name) => handleCreateFile(null, name),
+    onConfirm: name => handleCreateFile(null, name)
   })
 }
 
@@ -213,7 +213,7 @@ onMounted(async () => {
   try {
     const [workspacesData, wsData] = await Promise.all([
       $fetch<WorkspaceItem[]>('/api/workspaces'),
-      fetchWorkspace(workspaceId),
+      fetchWorkspace(workspaceId)
     ])
 
     allWorkspaces.value = workspacesData
@@ -238,7 +238,11 @@ onMounted(async () => {
     <aside class="w-64 shrink-0 border-r border-default bg-elevated/30 flex flex-col min-h-0">
       <!-- Workspace header -->
       <div class="h-12 px-2 border-b border-default flex items-center gap-1 shrink-0">
-        <UDropdownMenu :items="workspaceMenuItems" :content="{ align: 'start', side: 'bottom' }" class="flex-1 min-w-0">
+        <UDropdownMenu
+          :items="workspaceMenuItems"
+          :content="{ align: 'start', side: 'bottom' }"
+          class="flex-1 min-w-0"
+        >
           <UButton
             variant="ghost"
             color="neutral"
@@ -246,13 +250,22 @@ onMounted(async () => {
             class="w-full justify-start gap-2 min-w-0 px-2"
             :loading="isLoadingWorkspaceInfo"
           >
-            <UIcon name="i-lucide-layers" class="size-4 text-primary shrink-0" />
+            <UIcon
+              name="i-lucide-layers"
+              class="size-4 text-primary shrink-0"
+            />
             <span class="truncate font-medium text-sm">{{ currentWorkspace?.name ?? 'Carregando...' }}</span>
-            <UIcon name="i-lucide-chevrons-up-down" class="size-3.5 text-muted shrink-0 ml-auto" />
+            <UIcon
+              name="i-lucide-chevrons-up-down"
+              class="size-3.5 text-muted shrink-0 ml-auto"
+            />
           </UButton>
         </UDropdownMenu>
 
-        <UTooltip v-if="currentWorkspace?.isOwner" text="Compartilhar workspace">
+        <UTooltip
+          v-if="currentWorkspace?.isOwner"
+          text="Compartilhar workspace"
+        >
           <UButton
             icon="i-lucide-users"
             variant="ghost"
@@ -290,8 +303,14 @@ onMounted(async () => {
             :breadcrumbs="breadcrumbs"
             @navigate="handleBreadcrumbNavigate"
           />
-          <UIcon name="i-lucide-chevron-right" class="size-4 text-muted shrink-0" />
-          <UIcon name="i-lucide-file-code-2" class="size-4 text-primary shrink-0" />
+          <UIcon
+            name="i-lucide-chevron-right"
+            class="size-4 text-muted shrink-0"
+          />
+          <UIcon
+            name="i-lucide-file-code-2"
+            class="size-4 text-primary shrink-0"
+          />
           <span class="font-medium text-sm truncate">{{ currentFile.name }}</span>
         </div>
 
@@ -307,17 +326,28 @@ onMounted(async () => {
               v-if="editorSaveState === 'saving'"
               class="flex items-center gap-1.5 text-xs text-muted"
             >
-              <UIcon name="i-lucide-loader-2" class="size-3.5 animate-spin" />
+              <UIcon
+                name="i-lucide-loader-2"
+                class="size-3.5 animate-spin"
+              />
               <span>Salvando...</span>
             </div>
             <div
               v-else-if="editorSaveState === 'saved'"
               class="flex items-center gap-1.5 text-xs text-success"
             >
-              <UIcon name="i-lucide-check" class="size-3.5" />
+              <UIcon
+                name="i-lucide-check"
+                class="size-3.5"
+              />
               <span>Salvo</span>
             </div>
-            <div v-else class="text-xs text-muted/60">Todas as alterações salvas</div>
+            <div
+              v-else
+              class="text-xs text-muted/60"
+            >
+              Todas as alterações salvas
+            </div>
           </Transition>
 
           <UButton
@@ -350,9 +380,14 @@ onMounted(async () => {
             <div
               class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"
             >
-              <UIcon name="i-lucide-file-plus-2" class="size-7" />
+              <UIcon
+                name="i-lucide-file-plus-2"
+                class="size-7"
+              />
             </div>
-            <h3 class="text-base font-semibold mb-1">Nenhum arquivo selecionado</h3>
+            <h3 class="text-base font-semibold mb-1">
+              Nenhum arquivo selecionado
+            </h3>
             <p class="text-sm text-muted mb-5">
               Selecione um arquivo na barra lateral ou crie um novo.
             </p>
@@ -368,19 +403,18 @@ onMounted(async () => {
         </div>
       </div>
     </section>
+    <ShareModal
+      v-model:open="shareModalOpen"
+      :workspace-id="workspaceId"
+    />
+
+    <PromptModal
+      v-model:open="promptModal.open"
+      :title="promptModal.title"
+      :placeholder="promptModal.placeholder"
+      :confirm-label="promptModal.confirmLabel"
+      :initial-value="promptModal.initialValue"
+      @confirm="promptModal.onConfirm"
+    />
   </div>
-
-  <ShareModal
-    v-model:open="shareModalOpen"
-    :workspace-id="workspaceId"
-  />
-
-  <PromptModal
-    v-model:open="promptModal.open"
-    :title="promptModal.title"
-    :placeholder="promptModal.placeholder"
-    :confirm-label="promptModal.confirmLabel"
-    :initial-value="promptModal.initialValue"
-    @confirm="promptModal.onConfirm"
-  />
 </template>
